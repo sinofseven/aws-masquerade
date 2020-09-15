@@ -91,7 +91,9 @@ jobs:
             build-essential \
             musl-tools \
             libssl-dev \
-            openssl
+            openssl \
+            binutils-dev \
+            libcurl4-openssl-dev
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
