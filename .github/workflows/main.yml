@@ -1,0 +1,157 @@
+name: Release
+
+env:
+  PROJECT_NAME: aws-masquerade
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  create-release:    # GitHubのリリースページを作る
+    name: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create artifacts directory
+        run: mkdir artifacts
+
+      - name: Get the release version from the tag
+        if: env.PROJECT_VERSION == ''
+        run: |
+          echo "::set-env name=PROJECT_VERSION::${GITHUB_REF#refs/tags/}"
+          echo "version is: ${GITHUB_REF#refs/tags/}"
+
+      - name: Create GitHub release
+        id: release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.PROJECT_VERSION }}
+          release_name: ${{ env.PROJECT_VERSION }}
+
+      - name: Save release upload URL to artifact
+        run: echo "${{ steps.release.outputs.upload_url }}" > artifacts/release-upload-url
+
+      - name: Save version number to artifact
+        run: echo "${{ env.PROJECT_VERSION }}" > artifacts/release-version
+
+      - name: Upload artifacts   # ビルド用のworkflowにバージョン・アップロード先URLを伝えるための仕組み
+        uses: actions/upload-artifact@v1
+        with:
+          name: artifacts
+          path: artifacts
+
+  build-release:    # 各プラットフォーム向けの実行ファイルを作る
+    name: build / ${{ matrix.target }}
+    needs: ['create-release']
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        build: [linux, macos, win-msvc, win-gnu, linux-arm]
+        include:
+          - build: linux
+            os: ubuntu-18.04
+            rust: stable
+            target: x86_64-unknown-linux-musl
+            cross: false
+          - build: macos
+            os: macos-latest
+            rust: stable
+            target: x86_64-apple-darwin
+            cross: false
+          - build: win-msvc
+            os: windows-2019
+            rust: nightly
+            target: x86_64-pc-windows-msvc
+            cross: false
+          - build: win-gnu
+            os: windows-2019
+            rust: nightly-x86_64-gnu
+            target: x86_64-pc-windows-gnu
+            cross: false
+          - build: linux-arm
+            os: ubuntu-latest
+            rust: stable
+            target: arm-unknown-linux-gnueabihf
+            cross: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+
+      - name: Get release download URL  # アップロード先URLをとってくる
+        uses: actions/download-artifact@v1
+        with:
+          name: artifacts
+          path: artifacts
+
+      - name: Set release upload URL and release version
+        shell: bash
+        run: |
+          release_upload_url="$(cat artifacts/release-upload-url)"
+          echo "::set-env name=RELEASE_UPLOAD_URL::$release_upload_url"
+          echo "release upload url: $RELEASE_UPLOAD_URL"
+          release_version="$(cat artifacts/release-version)"
+          echo "::set-env name=RELEASE_VERSION::$release_version"
+          echo "release version: $RELEASE_VERSION"
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.cross }}
+          command: build
+          args: --verbose --release --target ${{ matrix.target }}
+
+      - name: Strip release binary (linux and macos)
+        if: matrix.build == 'linux' || matrix.build == 'macos'
+        run: strip "target/${{ matrix.target }}/release/${PROJECT_NAME}"
+
+      - name: Strip release binary (arm)
+        if: matrix.build == 'linux-arm' && matrix.target == 'arm-unknown-linux-gnueabihf'
+        run: |
+          docker run --rm -v \
+            "$PWD/target:/target:Z" \
+            rustembedded/cross:arm-unknown-linux-gnueabihf \
+            arm-linux-gnueabihf-strip \
+            /target/arm-unknown-linux-gnueabihf/release/${PROJECT_NAME}
+
+      - name: Build archive  # アーカイブにする。Windows環境だと7zコマンドが使える。
+        shell: bash
+        run: |
+          # NOTE: Consider adding script files to do below operations.
+          staging="${PROJECT_NAME}-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
+          mkdir -p "$staging"
+
+          cp README.md LICENSE CREDITS "$staging/"
+
+          if [ "${{ matrix.os }}" = "windows-2019" ]; then
+            cp "target/${{ matrix.target }}/release/${PROJECT_NAME}.exe" "$staging/"
+            7z a "$staging.zip" "$staging"
+            echo "::set-env name=ASSET::$staging.zip"
+          else
+            cp "target/${{ matrix.target }}/release/${PROJECT_NAME}" "$staging/"
+            tar czf "$staging.tar.gz" "$staging"
+            echo "::set-env name=ASSET::$staging.tar.gz"
+          fi
+
+      - name: Upload release archive  # ビルド結果をアップロードする
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ env.RELEASE_UPLOAD_URL }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
