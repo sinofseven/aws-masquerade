@@ -83,55 +83,9 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install Dependencies
-        if: matrix.build == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            linux-headers-$(uname -r) \
-            musl \
-            musl-tools \
-            libssl-dev \
-            openssl \
-            pkg-config
-
-      - name: Install OpenSSL
-        if: matrix.build == 'linux'
-        env:
-          CC: musl-gcc
-          CXX: musl-g++
-          AS: musl-as
-          AR: musl-gcc-ar
-          NM: musl-gcc-nm
-          RANLIB: musl-gcc-ranlib
-          LD: musl-ld
-          STRIP: musl-strip
-        run: |
-          sudo ln -s /usr/include/x86_64-linux-gnu/asm /usr/include/x86_64-linux-musl/asm
-          sudo ln -s /usr/include/asm-generic /usr/include/x86_64-linux-musl/asm-generic
-          sudo ln -s /usr/include/linux /usr/include/x86_64-linux-musl/linux
-
-          mkdir -p /tmp/workspace
-          mkdir -p /tmp/musl
-
-          cd /tmp/workspace
-          wget https://github.com/openssl/openssl/archive/OpenSSL_1_1_1f.tar.gz
-          tar zxvf OpenSSL_1_1_1f.tar.gz
-
-          cd openssl-OpenSSL_1_1_1f/
-          ./Configure \
-              no-shared \
-              no-async \
-              --prefix=/tmp/musl \
-              --openssldir=/tmp/musl/ssl \
-              linux-x86_64
-          make depend
-          make -j$(nproc)
-          make install
-
       - name: Install Rust
         uses: actions-rs/toolchain@v1
+        if: martix.build != "linux"
         with:
           toolchain: ${{ matrix.rust }}
           profile: minimal
@@ -163,16 +117,16 @@ jobs:
           args: --verbose --release --target ${{ matrix.target }}
 
       - name: Build linux
-        uses: actions-rs/cargo@v1
         if: matrix.build == 'linux'
-        env:
-          PKG_CONFIG_ALLOW_CROSS: 1
-          OPENSSL_STATIC: true
-          OPENSSL_DIR: /tmp/musl
-        with:
-          use-cross: ${{ matrix.cross }}
-          command: build
-          args: --verbose --release --target ${{ matrix.target }}
+        run: |
+          docker run \
+            --rm \
+            -v $PWD:/home/rust/src \
+            ekidd/rust-musl-builder:${{ martix.rust }} \
+              cargo build \
+              --verbose \
+              --release \
+              --target ${{ matrix.target }}
 
       - name: Strip release binary (linux and macos)
         if: matrix.build == 'linux' || matrix.build == 'macos'
