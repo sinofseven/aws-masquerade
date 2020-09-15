@@ -85,7 +85,7 @@ jobs:
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
-        if: martix.build != "linux"
+        if: matrix.build != "linux"
         with:
           toolchain: ${{ matrix.rust }}
           profile: minimal
