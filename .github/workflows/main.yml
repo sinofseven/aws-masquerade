@@ -74,7 +74,7 @@ jobs:
           - build: linux-arm
             os: ubuntu-latest
             rust: stable
-            target: arm-unknown-linux-gnueabihf
+            target: arm-unknown-linux-musleabi
             cross: true
 
     steps:
