@@ -97,14 +97,14 @@ jobs:
       - name: Install OpenSSL
         if: matrix.build == 'linux'
         env:
-          CC: x86_64-linux-musl-gcc
-          CXX: x86_64-linux-musl-g++
-          AS: x86_64-linux-musl-as
-          AR: x86_64-linux-musl-gcc-ar
-          NM: x86_64-linux-musl-gcc-nm
-          RANLIB: x86_64-linux-musl-gcc-ranlib
-          LD: x86_64-linux-musl-ld
-          STRIP: x86_64-linux-musl-strip
+          CC: musl-gcc
+          CXX: musl-g++
+          AS: musl-as
+          AR: musl-gcc-ar
+          NM: musl-gcc-nm
+          RANLIB: musl-gcc-ranlib
+          LD: musl-ld
+          STRIP: musl-strip
         run: |
           mkdir -p /tmp/workspace
           mkdir -p /tmp/musl
@@ -117,7 +117,7 @@ jobs:
           ./Configure \
               no-shared \
               no-async \
-              --prefix=/musl \
+              --prefix=/tmp/musl \
               --openssldir=/tmp/musl/ssl \
               linux-x86_64
           make depend
