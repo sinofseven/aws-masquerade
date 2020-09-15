@@ -93,7 +93,8 @@ jobs:
             libssl-dev \
             openssl \
             binutils-dev \
-            libcurl4-openssl-dev
+            libcurl4-openssl-dev \
+            pkg-config
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
