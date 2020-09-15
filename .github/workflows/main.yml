@@ -122,7 +122,7 @@ jobs:
           docker run \
             --rm \
             -v $PWD:/home/rust/src \
-            ekidd/rust-musl-builder:${{ martix.rust }} \
+            ekidd/rust-musl-builder:${{ matrix.rust }} \
               cargo build \
               --verbose \
               --release \
