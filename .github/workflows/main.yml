@@ -90,7 +90,8 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             musl-tools \
-            openssl-dev \
+            libssl-dev \
+            openssl \
             pkg-config
 
       - name: Install OpenSSL
