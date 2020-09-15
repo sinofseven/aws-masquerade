@@ -90,7 +90,8 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             musl-tools \
-            libssl1.0-dev
+            libssl-dev \
+            openssl
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
