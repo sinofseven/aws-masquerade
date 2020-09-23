@@ -2,7 +2,7 @@ use crate::lib::cmd_base::Cmd;
 use crate::lib::fs::{
     load_config, save_config, Account, AwsCliOutput, CredentialOutputTarget, MasqueradeConfig,
 };
-use crate::lib::io::{get_confirm, get_confirm_with_default, get_input};
+use crate::lib::io::{get_confirm_with_default, get_input};
 use crate::lib::totp::TOTP;
 use clap::{App, ArgMatches, SubCommand};
 use regex::Regex;
@@ -123,17 +123,19 @@ fn input_source_profile_name(old_source_profile: &Option<String>) -> Option<Stri
         let name = get_input(format!("source profile name [{}]: ", suffix));
         return if name.is_empty() {
             if let Some(old) = old_source_profile {
-                match get_confirm_with_default(format!("Do you use \"{}\"? (y/n) [y]: ", old), true)
-                {
+                match get_confirm_with_default(
+                    format!("Do you remove \"{}\"? (y/n) [n]: ", old),
+                    false,
+                ) {
                     Err(_) => {
                         println!("   invalid input");
                         continue;
                     }
-                    Ok(flag) => {
-                        if flag {
-                            Some(old.clone())
-                        } else {
+                    Ok(is_remove) => {
+                        if is_remove {
                             None
+                        } else {
+                            Some(old.clone())
                         }
                     }
                 }
@@ -184,20 +186,14 @@ fn input_mfa_arn(old_mfa_arn: &Option<String>) -> Option<String> {
                 return None;
             } else {
                 match get_confirm_with_default(
-                    format!("Do you use \"{}\"? (y/n) [y]: ", default),
-                    true,
+                    format!("Do you remove \"{}\"? (y/n) [n]: ", default),
+                    false,
                 ) {
                     Err(_) => {
                         println!("   invalid input");
                         continue;
                     }
-                    Ok(flag) => {
-                        if flag {
-                            return Some(default);
-                        } else {
-                            return None;
-                        }
-                    }
+                    Ok(is_remove) => return if is_remove { None } else { Some(default) },
                 }
             }
         } else {
@@ -219,18 +215,18 @@ fn input_mfa_secret(old_secret: &Option<String>) -> Option<String> {
                 return None;
             } else {
                 match get_confirm_with_default(
-                    format!("Do you use \"{}\"? (y/n) [y]", default),
-                    true,
+                    format!("Do you remove \"{}\"? (y/n) [n]", default),
+                    false,
                 ) {
                     Err(_) => {
                         println!("   invalid input");
                         continue;
                     }
-                    Ok(flag) => {
-                        if flag {
-                            secret = default.clone();
-                        } else {
+                    Ok(is_remove) => {
+                        if is_remove {
                             return None;
+                        } else {
+                            secret = default.clone()
                         }
                     }
                 }
@@ -293,12 +289,15 @@ fn input_cli_output(old_output: &Option<AwsCliOutput>) -> Option<AwsCliOutput> {
         let input = get_input(format!("\n > [{}]: ", default));
         if input.is_empty() {
             if let Some(o) = old_output {
-                match get_confirm_with_default(format!("Do you use \"{}\"? (y/n) [y]: ", o), true) {
+                match get_confirm_with_default(
+                    format!("Do you remove \"{}\"? (y/n) [n]: ", o),
+                    true,
+                ) {
                     Err(_) => {
                         println!("   invalid input");
                         continue;
                     }
-                    Ok(flag) => return if flag { Some(o.clone()) } else { None },
+                    Ok(is_remove) => return if is_remove { None } else { Some(o.clone()) },
                 }
             } else {
                 return None;
@@ -323,12 +322,15 @@ fn input_default_region(old_region: &Option<Region>) -> Option<Region> {
         let region_name = get_input(format!("Default Region Name [{}]: ", default));
         if region_name.is_empty() {
             if let Some(old) = old_region {
-                match get_confirm(format!("Do you use \"{}\"? (y/n): ", old.name())) {
+                match get_confirm_with_default(
+                    format!("Do you remove \"{}\"? (y/n) []: ", old.name()),
+                    false,
+                ) {
                     Err(_) => {
                         println!("   invalid input");
                         continue;
                     }
-                    Ok(flag) => return if flag { Some(old.clone()) } else { None },
+                    Ok(is_remove) => return if is_remove { None } else { Some(old.clone()) },
                 }
             } else {
                 return None;

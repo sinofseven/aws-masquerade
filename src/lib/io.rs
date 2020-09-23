@@ -588,17 +588,3 @@ where
         _ => Err(()),
     }
 }
-
-pub fn get_confirm<T>(message: T) -> Result<bool, ()>
-where
-    T: Display,
-{
-    let resp = get_input(message);
-    match resp.to_lowercase().as_str() {
-        "y" => Ok(true),
-        "yes" => Ok(true),
-        "n" => Ok(false),
-        "no" => Ok(false),
-        _ => Err(()),
-    }
-}
