@@ -1,11 +1,17 @@
 [package]
 name = "aws-masquerade"
-description = "assume iam role"
+description = "AWS Assume Role CLI Tool"
 version = "0.1.0"
 authors = ["sinofseven <em.s.00001@gmail.com>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+repository = "https://github.com/sinofseven/aws-masquerade"
+license = "MIT"
+readme = "README.md"
+category = ["command-line-utilities"]
+keywords = ["aws", "assume role", "credentials"]
 
 [[bin]]
 name = "aws-masquerade"
