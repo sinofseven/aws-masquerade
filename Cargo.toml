@@ -11,7 +11,7 @@ repository = "https://github.com/sinofseven/aws-masquerade"
 license = "MIT"
 readme = "README.md"
 category = ["command-line-utilities"]
-keywords = ["aws", "assume role", "credentials"]
+keywords = ["aws", "assume_role", "credentials"]
 
 [[bin]]
 name = "aws-masquerade"
