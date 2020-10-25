@@ -4,6 +4,7 @@ aws-masquerade
 CLI tool which enables you to login and retrieve [AWS](https://aws.amazon.com/) temporary credentials using with Assuming Role.
 
 ## Install
+---
 ### From binaries
 Check out the [Release page](https://github.com/sinofseven/aws-masquerade/releases) for prebuild versions of `aws-masquerade` for several different architectures.
 
@@ -13,6 +14,7 @@ cargo install aws-masquerade
 ```
 
 ## Usage
+---
 ```
 aws-masquerade 0.1.0
 sinofseven
@@ -228,4 +230,5 @@ aws-masquerade validate
 ```
 
 ## Author
+---
 [sinofseven](https://github.com/sinofseven)
