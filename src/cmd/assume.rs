@@ -10,6 +10,7 @@ use rusoto_core::{HttpClient, Region};
 use rusoto_sts::{AssumeRoleRequest, AssumeRoleResponse, Sts, StsClient};
 
 const TOKEN_ARG_NAME: &str = "token";
+const ASSUME_TYPE_ARG_NAME: &str = "assume_type";
 
 pub const NAME: &str = "assume";
 pub struct Assume;
@@ -33,6 +34,19 @@ impl Cmd for Assume {
                     .takes_value(true)
                     .help("Input Mfa Token"),
             )
+            .arg(
+                Arg::with_name(ASSUME_TYPE_ARG_NAME)
+                    .long("credential-output-target")
+                    .short("c")
+                    .takes_value(true)
+                    .possible_values(&[
+                        CredentialOutputTarget::Bash.to_str(),
+                        CredentialOutputTarget::Fish.to_str(),
+                        CredentialOutputTarget::PowerShell.to_str(),
+                        CredentialOutputTarget::SharedCredentials.to_str(),
+                    ])
+                    .help("Output Target"),
+            )
     }
 
     fn run(args: &ArgMatches) -> Result<(), String> {
@@ -43,11 +57,18 @@ impl Cmd for Assume {
             Some(data) => data,
         };
 
+        let output_target = get_credential_output_target(args, account_data)?;
+
         let client = create_sts_client(account_data)?;
         let option = create_assume_role_option(args, account_data)?;
         let result = exec_assume_role(option, &client)?;
 
-        output(&account_name.to_string(), account_data, &result)
+        output(
+            &account_name.to_string(),
+            account_data,
+            &result,
+            &output_target,
+        )
     }
 }
 
@@ -119,12 +140,23 @@ fn get_mfa_token(args: &ArgMatches, account: &Account) -> Result<String, String>
     }
 }
 
+fn get_credential_output_target(
+    args: &ArgMatches,
+    account: &Account,
+) -> Result<CredentialOutputTarget, String> {
+    match args.value_of(ASSUME_TYPE_ARG_NAME) {
+        None => Ok(account.credential_output),
+        Some(target) => CredentialOutputTarget::from_str(target),
+    }
+}
+
 fn output(
     account_name: &String,
     account_data: &Account,
     assume_result: &AssumeRoleResponse,
+    output_target: &CredentialOutputTarget,
 ) -> Result<(), String> {
-    let text = match account_data.credential_output {
+    let text = match output_target {
         CredentialOutputTarget::Bash => {
             assume_result.create_bash_credentials(&account_data.output, &account_data.region)
         }
