@@ -1,11 +1,14 @@
 use crate::lib::dirs::MASQUERADE_PATH;
 use rusoto_core::Region;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use std::{
+    collections::{BTreeMap, HashMap},
+    str,
+};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub enum CredentialOutputTarget {
     #[serde(rename = "bash")]
     Bash,
@@ -22,6 +25,16 @@ impl CredentialOutputTarget {
             CredentialOutputTarget::Fish => "fish",
             CredentialOutputTarget::PowerShell => "PowerShell",
             CredentialOutputTarget::SharedCredentials => "SharedCredentials",
+        }
+    }
+
+    pub fn from_str(v: &str) -> Result<CredentialOutputTarget, String> {
+        match v {
+            "bash" => Ok(CredentialOutputTarget::Bash),
+            "fish" => Ok(CredentialOutputTarget::Fish),
+            "PowerShell" => Ok(CredentialOutputTarget::PowerShell),
+            "SharedCredentials" => Ok(CredentialOutputTarget::SharedCredentials),
+            _ => Err("Invalid Name of CredentialOutputTarget".to_string()),
         }
     }
 }
