@@ -19,7 +19,7 @@ jobs:
       - name: Get the release version from the tag
         if: env.PROJECT_VERSION == ''
         run: |
-          echo "::set-env name=PROJECT_VERSION::${GITHUB_REF#refs/tags/}"
+          echo "PROJECT_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           echo "version is: ${GITHUB_REF#refs/tags/}"
 
       - name: Create GitHub release
