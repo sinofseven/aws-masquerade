@@ -16,9 +16,9 @@ cargo install aws-masquerade
 ## Usage
 ---
 ```
-aws-masquerade 0.1.0
+aws-masquerade 0.2.0
 sinofseven
-assume iam role
+AWS Assume Role CLI Tool
 
 USAGE:
     aws-masquerade [SUBCOMMAND]
@@ -98,8 +98,12 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -a, --account-name <account>    Name of the account
-    -t, --mfa-token <token>         Input Mfa Token
+    -a, --account-name <account>                    Name of the account
+    -c, --credential-output-target <assume_type>
+            Output Target [possible values: bash, fish, PowerShell, SharedCredentials]
+
+    -t, --mfa-token <token>                         Input Mfa Token
+
 ```
 
 If you are using MFA, enter the MFA token optionally or interactively.  
