@@ -135,7 +135,7 @@ impl MasqueradeOutputExt for Credentials {
             lines.push(format!("$env:AWS_DEFAULT_REGION=\"{}\"", region.name()))
         }
         lines.push("# Run this to configure your shell:".to_string());
-        lines.push(format!("# eval $({})", args.join(" ")));
+        lines.push(format!("# {} | Invoke-Expression", args.join(" ")));
 
         lines.join("\n")
     }
