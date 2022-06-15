@@ -143,7 +143,7 @@ $env:AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 $env:AWS_SESSION_TOKEN="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 $env:AWS_SECURITY_TOKEN="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 # Run this to configure your shell:
-# eval $(aws-masquerade assume -a account-name)
+# aws-masquerade assume -a account-name | Invoke-Expression
 ```
 
 
