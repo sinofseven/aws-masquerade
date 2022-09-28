@@ -1,9 +1,9 @@
 [package]
 name = "aws-masquerade"
 description = "AWS Assume Role CLI Tool"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["sinofseven <em.s.00001@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,18 +16,6 @@ keywords = ["aws", "assume_role", "credentials"]
 [[bin]]
 name = "aws-masquerade"
 path = "src/main.rs"
-
 [dependencies]
-clap = "2.33"
-ring = "0.16.19"
-data-encoding = "2.3"
-serde = {version = "1", features = ["derive"]}
-serde_json = "1"
-serde_ini = "0.2"
-rusoto_core = { version="0.45.0", default_features=false, features=["rustls"] }
-rusoto_sts = { version="0.45.0", default_features=false, features=["rustls"] }
-tokio = "0.2"
-dirs = "3"
-lazy_static = "1.4"
-regex = "1.3"
-uuid = { version = "0.8", features = ["v4"] }
+clap = {version = "3.2.22", features=["cargo"]}
+data-encoding = "2.3.2"
