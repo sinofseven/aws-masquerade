@@ -10,12 +10,17 @@ edition = "2021"
 repository = "https://github.com/sinofseven/aws-masquerade"
 license = "MIT"
 readme = "README.md"
-category = ["command-line-utilities"]
+categories = ["command-line-utilities"]
 keywords = ["aws", "assume_role", "credentials"]
 
 [[bin]]
 name = "aws-masquerade"
 path = "src/main.rs"
 [dependencies]
-clap = {version = "3.2.22", features=["cargo"]}
+clap = {version = "4.0.4", features=["cargo"]}
 data-encoding = "2.3.2"
+serde = {version = "1.0.145", features=["derive"]}
+dirs = "4.0.0"
+serde_json = "1.0.85"
+toml = "0.5.9"
+colored = "2.0.0"
