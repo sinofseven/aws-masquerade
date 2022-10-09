@@ -95,12 +95,6 @@ pub struct MasqueradeConfig {
     pub accounts: std::collections::BTreeMap<String, Account>,
 }
 
-impl Validation for MasqueradeConfig {
-    fn validate(&self) -> Result<(), String> {
-        Ok(())
-    }
-}
-
 impl MasqueradeConfig {
     pub fn new(text: &str) -> Result<MasqueradeConfig, String> {
         serde_json::from_str(text)

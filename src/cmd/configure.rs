@@ -56,13 +56,8 @@ impl Cmd for Validate {
     }
 
     fn run(_args: &ArgMatches) -> Result<(), String> {
-        let (config_path, version) = path::get_current_path_masquerade_config()?;
-        let text = crate::fs::load_text(&config_path)?;
-        let data: Box<dyn Validation> = match version {
-            ConfigVersion::V0 => Box::new(ConfigV0::new(&text)?),
-            ConfigVersion::V1 => Box::new(ConfigV1::new(&text)?),
-        };
-        data.validate()
+        let configure = crate::models::configuration::load_configuration()?;
+        configure.validate()
     }
 }
 
