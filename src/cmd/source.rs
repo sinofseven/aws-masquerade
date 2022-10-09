@@ -1,8 +1,8 @@
-use clap::{ArgMatches, Command};
 use crate::base::{Cmd, Validation};
-use crate::variables::cmd::source;
 use crate::models::configuration::v0::MasqueradeConfig as ConfigV0;
 use crate::models::configuration::v1::Configuration as ConfigV1;
+use crate::variables::cmd::source;
+use clap::{ArgMatches, Command};
 
 pub struct Source;
 struct List;
@@ -10,7 +10,6 @@ struct Show;
 struct Add;
 struct Edit;
 struct Remove;
-
 
 impl Cmd for Source {
     const NAME: &'static str = source::NAME;
@@ -43,8 +42,7 @@ impl Cmd for List {
     const NAME: &'static str = source::sub_command::LIST;
 
     fn subcommand() -> Command {
-        Command::new(Self::NAME)
-            .about("list source name")
+        Command::new(Self::NAME).about("list source name")
     }
 
     fn run(_args: &ArgMatches) -> Result<(), String> {
@@ -54,7 +52,7 @@ impl Cmd for List {
             crate::variables::models::configuration::Version::V0 => ConfigV0::new(&text)?.migrate(),
             crate::variables::models::configuration::Version::V1 => ConfigV1::new(&text)?,
         };
-        
+
         config.validate()?;
 
         for source in &config.source {

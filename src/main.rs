@@ -6,9 +6,8 @@ pub mod models;
 pub mod path;
 pub mod variables;
 
-
 use base::Cmd;
-use cmd::{Configure, Source, Target, Assume};
+use cmd::{Assume, Configure, Source, Target};
 
 use clap::command;
 

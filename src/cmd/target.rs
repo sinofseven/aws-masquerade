@@ -1,6 +1,6 @@
-use clap::{ArgMatches, Command};
 use crate::base::Cmd;
 use crate::variables::cmd::target;
+use clap::{ArgMatches, Command};
 
 pub struct Target;
 struct List;

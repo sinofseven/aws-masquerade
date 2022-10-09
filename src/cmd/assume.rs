@@ -8,8 +8,7 @@ impl Cmd for Assume {
     const NAME: &'static str = assume::NAME;
 
     fn subcommand() -> Command {
-        Command::new(Self::NAME)
-            .about("execute assume role")
+        Command::new(Self::NAME).about("execute assume role")
     }
 
     fn run(_args: &ArgMatches) -> Result<(), String> {
