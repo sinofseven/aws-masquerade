@@ -14,7 +14,7 @@
     - [x] validate: 設定ファイルに不備がないか確認
     - [x] migrage: 設定ファイルをv0からv1に更新
   - [ ] source: AssumeRoleを実行する側の設定に関するコマンド
-    - [ ] list: 一覧を表示する
+    - [x] list: 一覧を表示する
     - [ ] show: 詳細を表示する
     - [ ] add: 追加する
     - [ ] edit: 設定を変更する

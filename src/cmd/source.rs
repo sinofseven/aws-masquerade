@@ -55,9 +55,11 @@ impl Cmd for List {
 
         config.validate()?;
 
-        for source in &config.source {
-            println!("{}", source.name);
-        }
+        let result: Vec<&String> = config.source.iter().map(|s| &s.name ).collect();
+        let text = serde_json::to_string_pretty(&result).map_err(|e| format!("failed to serialize result: {}", e))?;
+
+        println!("{}", text);
+
         Ok(())
     }
 }
