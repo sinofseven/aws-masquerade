@@ -6,7 +6,9 @@ pub fn load_configuration() -> Result<v1::Configuration, String> {
     let text = crate::fs::load_text(&path)?;
 
     match version {
-        crate::variables::models::configuration::Version::V0 => Ok(v0::MasqueradeConfig::new(&text)?.migrate()),
+        crate::variables::models::configuration::Version::V0 => {
+            Ok(v0::MasqueradeConfig::new(&text)?.migrate())
+        }
         crate::variables::models::configuration::Version::V1 => v1::Configuration::new(&text),
     }
 }
