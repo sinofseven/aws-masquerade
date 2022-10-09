@@ -1,7 +1,7 @@
 use crate::base::{Cmd, Validation};
-use crate::variables::cmd::target;
 use crate::models::configuration::v0::MasqueradeConfig as ConfigV0;
 use crate::models::configuration::v1::Configuration as ConfigV1;
+use crate::variables::cmd::target;
 use clap::{ArgMatches, Command};
 
 pub struct Target;
@@ -42,8 +42,7 @@ impl Cmd for List {
     const NAME: &'static str = target::sub_command::LIST;
 
     fn subcommand() -> Command {
-        Command::new(Self::NAME)
-            .about("list target name")
+        Command::new(Self::NAME).about("list target name")
     }
 
     fn run(_args: &ArgMatches) -> Result<(), String> {
@@ -57,7 +56,8 @@ impl Cmd for List {
         config.validate()?;
 
         let result: Vec<&String> = config.target.iter().map(|t| &t.name).collect();
-        let text = serde_json::to_string_pretty(&result).map_err(|e| format!("failed to serialize result: {}", e))?;
+        let text = serde_json::to_string_pretty(&result)
+            .map_err(|e| format!("failed to serialize result: {}", e))?;
 
         println!("{}", text);
         Ok(())
