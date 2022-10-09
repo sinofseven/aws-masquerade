@@ -1,6 +1,8 @@
 use clap::{ArgMatches, Command};
-use crate::base::Cmd;
+use crate::base::{Cmd, Validation};
 use crate::variables::cmd::source;
+use crate::models::configuration::v0::MasqueradeConfig as ConfigV0;
+use crate::models::configuration::v1::Configuration as ConfigV1;
 
 pub struct Source;
 struct List;
@@ -42,10 +44,23 @@ impl Cmd for List {
 
     fn subcommand() -> Command {
         Command::new(Self::NAME)
+            .about("list source name")
     }
 
     fn run(_args: &ArgMatches) -> Result<(), String> {
-        todo!()
+        let (path, version) = crate::path::get_current_path_masquerade_config()?;
+        let text = crate::fs::load_text(&path)?;
+        let config = match version {
+            crate::variables::models::configuration::Version::V0 => ConfigV0::new(&text)?.migrate(),
+            crate::variables::models::configuration::Version::V1 => ConfigV1::new(&text)?,
+        };
+        
+        config.validate()?;
+
+        for source in &config.source {
+            println!("{}", source.name);
+        }
+        Ok(())
     }
 }
 
