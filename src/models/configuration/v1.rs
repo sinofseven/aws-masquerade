@@ -32,12 +32,19 @@ pub struct Credential {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Source {
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from_environment: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub credentials: Option<Credential>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mfa_arn: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mfa_secret: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 
@@ -61,9 +68,13 @@ pub struct Target {
     pub source: String,
     pub role_arn: String,
     pub credential_output: CredentialOutputTarget,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_seconds: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cli_output: Option<CliOutputTarget>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 

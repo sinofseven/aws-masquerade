@@ -1,8 +1,6 @@
 use crate::base::{Cmd, Validation};
-use crate::models::configuration::v0::MasqueradeConfig as ConfigV0;
-use crate::models::configuration::v1::Configuration as ConfigV1;
 use crate::variables::cmd::source;
-use clap::{ArgMatches, Command};
+use clap::{arg, ArgMatches, Command};
 
 pub struct Source;
 struct List;
@@ -46,12 +44,7 @@ impl Cmd for List {
     }
 
     fn run(_args: &ArgMatches) -> Result<(), String> {
-        let (path, version) = crate::path::get_current_path_masquerade_config()?;
-        let text = crate::fs::load_text(&path)?;
-        let config = match version {
-            crate::variables::models::configuration::Version::V0 => ConfigV0::new(&text)?.migrate(),
-            crate::variables::models::configuration::Version::V1 => ConfigV1::new(&text)?,
-        };
+        let config = crate::models::configuration::load_configuration()?;
 
         config.validate()?;
 
@@ -70,10 +63,26 @@ impl Cmd for Show {
 
     fn subcommand() -> Command {
         Command::new(Self::NAME)
+            .about("show source detail")
+            .arg(arg!(<SOURCE_NAME>))
     }
 
-    fn run(_args: &ArgMatches) -> Result<(), String> {
-        todo!()
+    fn run(args: &ArgMatches) -> Result<(), String> {
+        let source_name: &String = args.get_one("SOURCE_NAME").unwrap();
+        let config = crate::models::configuration::load_configuration()?;
+
+        let source = config
+            .source
+            .iter()
+            .find(|s| &s.name == source_name)
+            .ok_or_else(|| format!("source(name={}) is not found.", source_name))?;
+
+        let text = serde_json::to_string_pretty(source)
+            .map_err(|e| format!("failed to serialize source: {}", e))?;
+
+        println!("{}", text);
+
+        Ok(())
     }
 }
 

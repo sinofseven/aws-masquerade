@@ -1,4 +1,3 @@
-use crate::base::Validation;
 use crate::models::configuration::v1;
 use serde::{Deserialize, Serialize};
 
@@ -93,12 +92,6 @@ impl Account {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct MasqueradeConfig {
     pub accounts: std::collections::BTreeMap<String, Account>,
-}
-
-impl Validation for MasqueradeConfig {
-    fn validate(&self) -> Result<(), String> {
-        Ok(())
-    }
 }
 
 impl MasqueradeConfig {
