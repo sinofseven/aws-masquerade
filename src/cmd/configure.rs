@@ -1,9 +1,6 @@
 use crate::base::{Cmd, Validation};
-use crate::models::configuration::v0::MasqueradeConfig as ConfigV0;
-use crate::models::configuration::v1::Configuration as ConfigV1;
 use crate::path;
-use crate::variables::cmd::configure as names;
-use crate::variables::models::configuration::Version as ConfigVersion;
+use crate::variables::cmd::configure;
 use clap::{ArgMatches, Command};
 
 pub struct Configure;
@@ -12,7 +9,7 @@ struct Validate;
 struct Migrate;
 
 impl Cmd for Configure {
-    const NAME: &'static str = names::NAME;
+    const NAME: &'static str = configure::NAME;
 
     fn subcommand() -> Command {
         Command::new(Self::NAME)
@@ -35,7 +32,7 @@ impl Cmd for Configure {
 }
 
 impl Cmd for Path {
-    const NAME: &'static str = names::sub_command::PATH;
+    const NAME: &'static str = configure::sub_command::PATH;
 
     fn subcommand() -> Command {
         Command::new(Self::NAME).about("show config file path")
@@ -49,7 +46,7 @@ impl Cmd for Path {
 }
 
 impl Cmd for Validate {
-    const NAME: &'static str = names::sub_command::VALIDATE;
+    const NAME: &'static str = configure::sub_command::VALIDATE;
 
     fn subcommand() -> Command {
         Command::new(Self::NAME)
@@ -62,7 +59,7 @@ impl Cmd for Validate {
 }
 
 impl Cmd for Migrate {
-    const NAME: &'static str = names::sub_command::MIGRATE;
+    const NAME: &'static str = configure::sub_command::MIGRATE;
 
     fn subcommand() -> Command {
         Command::new(Self::NAME)

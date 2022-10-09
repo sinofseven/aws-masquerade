@@ -1,8 +1,6 @@
 use crate::base::{Cmd, Validation};
-use crate::models::configuration::v0::MasqueradeConfig as ConfigV0;
-use crate::models::configuration::v1::Configuration as ConfigV1;
 use crate::variables::cmd::source;
-use clap::{arg, Arg, ArgMatches, Command};
+use clap::{arg, ArgMatches, Command};
 
 pub struct Source;
 struct List;
