@@ -6,10 +6,9 @@ pub mod models;
 pub mod path;
 pub mod variables;
 
-use cmd::Test;
 
 use base::Cmd;
-use cmd::Configure;
+use cmd::{Configure, Source, Target, Assume};
 
 use clap::command;
 
@@ -17,12 +16,16 @@ fn main() -> Result<(), String> {
     let matches = command!()
         .subcommand_required(true)
         .arg_required_else_help(true)
-        .subcommand(Test::subcommand())
         .subcommand(Configure::subcommand())
+        .subcommand(Source::subcommand())
+        .subcommand(Target::subcommand())
+        .subcommand(Assume::subcommand())
         .get_matches();
     match matches.subcommand() {
-        Some((Test::NAME, sub_matches)) => Test::run(sub_matches),
-        Some((Configure::NAME, sub_matches)) => Configure::run(sub_matches),
+        Some((Configure::NAME, args)) => Configure::run(args),
+        Some((Source::NAME, args)) => Source::run(args),
+        Some((Target::NAME, args)) => Target::run(args),
+        Some((Assume::NAME, args)) => Assume::run(args),
         _ => unreachable!(""),
     }
 }
