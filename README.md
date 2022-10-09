@@ -15,13 +15,13 @@
     - [x] migrage: 設定ファイルをv0からv1に更新
   - [ ] source: AssumeRoleを実行する側の設定に関するコマンド
     - [x] list: 一覧を表示する
-    - [ ] show: 詳細を表示する
+    - [x] show: 詳細を表示する
     - [ ] add: 追加する
     - [ ] edit: 設定を変更する
     - [ ] remove: 設定を削除する
   - [ ] target: AssumeRoleの対象の設定に関するコマンド
     - [x] list: 一覧を表示する
-    - [ ] show: 詳細を表示するう
+    - [x] show: 詳細を表示するう
     - [ ] add: 追加する
     - [ ] edit: 設定を変更する
     - [ ] remove: 設定を削除する
