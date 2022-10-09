@@ -63,7 +63,7 @@ impl Cmd for Show {
 
     fn subcommand() -> Command {
         Command::new(Self::NAME)
-            .about("show source detail")
+            .about("show detail of a source")
             .arg(arg!(<SOURCE_NAME>))
     }
 

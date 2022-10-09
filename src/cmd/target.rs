@@ -2,7 +2,7 @@ use crate::base::{Cmd, Validation};
 use crate::models::configuration::v0::MasqueradeConfig as ConfigV0;
 use crate::models::configuration::v1::Configuration as ConfigV1;
 use crate::variables::cmd::target;
-use clap::{ArgMatches, Command};
+use clap::{ArgMatches, Command, arg};
 
 pub struct Target;
 struct List;
@@ -69,10 +69,23 @@ impl Cmd for Show {
 
     fn subcommand() -> Command {
         Command::new(Self::NAME)
+            .about("show detail of a target")
+            .arg(arg!(<TARGET_NAME>))
     }
 
-    fn run(_args: &ArgMatches) -> Result<(), String> {
-        todo!()
+    fn run(args: &ArgMatches) -> Result<(), String> {
+        let name_target: &String = args.get_one("TARGET_NAME").unwrap();
+
+        let config = crate::models::configuration::load_configuration()?;
+        config.validate()?;
+
+        let target = config.target.iter().find(|t| &t.name == name_target).ok_or_else(|| format!("target(name={}) is not found.", name_target))?;
+
+        let text = serde_json::to_string_pretty(&target).map_err(|e| format!("failed to serialize target: {}", e))?;
+
+        println!("{}", text);
+
+        Ok(())
     }
 }
 
