@@ -112,7 +112,7 @@ impl Validation for Configuration {
             if !target_name_set.insert(target.name.to_string()) {
                 return Err(format!("Validation Error: name of target must be uniq. (tource name '{}' is dupplicate.)", target.name));
             }
-            if !source_name_set.contains(&target.name) {
+            if !source_name_set.contains(&target.source) {
                 return Err(format!(
                     "Validation Error in target(name={})): source is not found (source={}).",
                     target.name, target.source
