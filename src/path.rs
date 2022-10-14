@@ -61,3 +61,9 @@ pub fn get_current_path_masquerade_config() -> Result<(PathBuf, ConfigVersion), 
         Ok((latest, ConfigVersion::V1))
     }
 }
+
+pub fn get_path_totp_generate_history() -> Result<PathBuf, String> {
+    home_dir()
+        .map(|h| h.join(".config/aws-masquerade/.totp_count_history.json"))
+        .ok_or_else(|| FAILD_RESOLVE_HOME.to_string())
+}

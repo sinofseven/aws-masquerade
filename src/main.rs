@@ -4,6 +4,7 @@ pub mod fs;
 pub mod io;
 pub mod models;
 pub mod path;
+pub mod totp;
 pub mod variables;
 
 use base::Cmd;

@@ -16,6 +16,7 @@ keywords = ["aws", "assume_role", "credentials"]
 [[bin]]
 name = "aws-masquerade"
 path = "src/main.rs"
+
 [dependencies]
 clap = {version = "4.0.4", features=["cargo"]}
 data-encoding = "2.3.2"
@@ -24,3 +25,11 @@ dirs = "4.0.0"
 serde_json = "1.0.85"
 toml = "0.5.9"
 colored = "2.0.0"
+tokio = {version = "1.21.2", features=["full"]}
+aws-config = "0.49.0"
+aws-types = "0.49.0"
+aws-sdk-sts = "0.19.0"
+ring = "0.16.20"
+uuid = {version = "1.2.1", features=["v4"]}
+serde_ini = "0.2.0"
+chrono = "0.4.22"

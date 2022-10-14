@@ -63,12 +63,8 @@ impl Account {
         };
         let source = v1::Source {
             name: profile.to_string(),
-            from_environment: match self.source_profile {
-                Some(_) => None,
-                None => Some(true),
-            },
             profile: self.source_profile.clone(),
-            credentials: None,
+            credential: None,
             region: None,
             mfa_arn: self.mfa_arn.clone(),
             mfa_secret: self.mfa_secret.clone(),
@@ -122,6 +118,7 @@ impl MasqueradeConfig {
             target: set_target.into_iter().collect(),
             core: v1::Core {
                 version: "1.0".to_string(),
+                save_totp_counter_history: Some(true),
             },
         }
     }
