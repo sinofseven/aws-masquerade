@@ -20,7 +20,7 @@ jobs:
             os: macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - use: actions/checkout@v2
+      - uses: actions/checkout@v2
       - name: Cache cargo registory and index
         uses: actions/cache@v2
         with:
