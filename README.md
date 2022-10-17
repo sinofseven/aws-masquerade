@@ -25,7 +25,9 @@
     - [ ] add: 追加する
     - [ ] edit: 設定を変更する
     - [ ] remove: 設定を削除する
-  - [ ] assume: AssumeRoleを実行する
+  - [x] assume: AssumeRoleを実行する
+- 備考
+  - source/targetにadd/edit/removeの3つのコマンドが必要かどうか考える必要がありそう
 
 ### Author
 - [sinofseven](https://github.com/sinofseven)

@@ -13,6 +13,57 @@ pub enum CredentialOutputTarget {
     SharedCredentials,
 }
 
+impl CredentialOutputTarget {
+    pub fn new(text: &str) -> Result<CredentialOutputTarget, String> {
+        match text.to_lowercase().as_str() {
+            "json" => Ok(CredentialOutputTarget::Json),
+            "j" => Ok(CredentialOutputTarget::Json),
+            "bash" => Ok(CredentialOutputTarget::Bash),
+            "b" => Ok(CredentialOutputTarget::Bash),
+            "fish" => Ok(CredentialOutputTarget::Fish),
+            "f" => Ok(CredentialOutputTarget::Fish),
+            "powershell" => Ok(CredentialOutputTarget::PowerShell),
+            "p" => Ok(CredentialOutputTarget::PowerShell),
+            "sharedcredentials" => Ok(CredentialOutputTarget::SharedCredentials),
+            "s" => Ok(CredentialOutputTarget::SharedCredentials),
+            _ => Err(format!("'{}' is not valid credential output.", text)),
+        }
+    }
+}
+
+impl clap::ValueEnum for CredentialOutputTarget {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[
+            CredentialOutputTarget::Json,
+            CredentialOutputTarget::Bash,
+            CredentialOutputTarget::Fish,
+            CredentialOutputTarget::PowerShell,
+            CredentialOutputTarget::SharedCredentials,
+        ]
+    }
+
+    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+        let result = match self {
+            CredentialOutputTarget::Json => {
+                clap::builder::PossibleValue::new("json").aliases(["j", "Json"])
+            }
+            CredentialOutputTarget::Bash => {
+                clap::builder::PossibleValue::new("bash").aliases(["b", "Bash"])
+            }
+            CredentialOutputTarget::Fish => {
+                clap::builder::PossibleValue::new("fish").aliases(["f", "Fish"])
+            }
+            CredentialOutputTarget::PowerShell => {
+                clap::builder::PossibleValue::new("PowerShell").aliases(["p"])
+            }
+            CredentialOutputTarget::SharedCredentials => {
+                clap::builder::PossibleValue::new("SharedCredentials").aliases(["s"])
+            }
+        };
+        Some(result)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CliOutputTarget {
@@ -21,6 +72,19 @@ pub enum CliOutputTarget {
     YamlStream,
     Text,
     Table,
+}
+
+impl std::fmt::Display for CliOutputTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let result = match self {
+            CliOutputTarget::Json => "json",
+            CliOutputTarget::Yaml => "yaml",
+            CliOutputTarget::YamlStream => "yaml-stream",
+            CliOutputTarget::Text => "text",
+            CliOutputTarget::Table => "table",
+        };
+        write!(f, "{}", result)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
@@ -33,11 +97,9 @@ pub struct Credential {
 pub struct Source {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub from_environment: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub credentials: Option<Credential>,
+    pub credential: Option<Credential>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -50,8 +112,8 @@ pub struct Source {
 
 impl Validation for Source {
     fn validate(&self) -> Result<(), String> {
-        if self.from_environment.is_none() && self.profile.is_none() && self.credentials.is_none() {
-            return Err(format!("Validation Error in Source(name={}): One of ['from_environment', 'profile', 'credentials'] is required.", self.name));
+        if self.profile.is_some() && self.credential.is_some() {
+            return Err("It is not possible to set both 'profile' and 'credential'.".to_string());
         }
 
         if self.mfa_arn.is_none() && self.mfa_secret.is_some() {
@@ -69,7 +131,7 @@ pub struct Target {
     pub role_arn: String,
     pub credential_output: CredentialOutputTarget,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub duration_seconds: Option<u32>,
+    pub duration_seconds: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -96,13 +158,14 @@ impl Validation for Target {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Core {
     pub version: String,
+    pub save_totp_counter_history: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Configuration {
+    pub core: Core,
     pub source: Vec<Source>,
     pub target: Vec<Target>,
-    pub core: Core,
 }
 
 impl Validation for Configuration {
