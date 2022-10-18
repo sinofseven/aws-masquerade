@@ -9,6 +9,51 @@ jobs:
       matrix:
         target:
           - x86_64-unknown-linux-musl
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache cargo registory and index
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1.0.1
+        with:
+          command: install
+          args: cargo-lichking
+      - uses: actions-rs/cargo@v1.0.1
+        with:
+          command: lichking
+          args: bundle > TMP_CREDITS
+        continue-on-error: true
+      - run: diff CREDITS TMP_CREDITS
+      - uses: actions-rs/cargo@v1.0.1
+        with:
+          command: build
+          args: --release --target=${{ matrix.target }}
+          use-cross: true
+
+  build-all:
+    needs: build
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-musl
           - x86_64-pc-windows-gnu
           - x86_64-pc-windows-msvc
@@ -53,7 +98,7 @@ jobs:
           args: cargo-lichking
       - uses: actions-rs/cargo@v1.0.1
         with:
-          command: licking
+          command: lichking
           args: bundle > TMP_CREDITS
         continue-on-error: true
       - run: diff CREDITS TMP_CREDITS
