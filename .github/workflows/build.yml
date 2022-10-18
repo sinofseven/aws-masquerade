@@ -49,6 +49,16 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1.0.1
         with:
+          command: install
+          args: cargo-lichking
+      - uses: actions-rs/cargo@v1.0.1
+        with:
+          command: licking
+          args: bundle > TMP_CREDITS
+        continue-on-error: true
+      - run: diff CREDITS TMP_CREDITS
+      - uses: actions-rs/cargo@v1.0.1
+        with:
           command: build
           args: --release --target=${{ matrix.target }}
           use-cross: true
