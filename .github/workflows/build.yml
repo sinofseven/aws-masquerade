@@ -13,7 +13,7 @@ jobs:
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
     runs-on: ${{ matrix.os }}
-    steps:
+    steps: &define_steps
       - uses: actions/checkout@v2
       - name: Cache cargo registory and index
         uses: actions/cache@v2
@@ -39,7 +39,7 @@ jobs:
       - uses: actions-rs/cargo@v1.0.1
         with:
           command: lichking
-          args: bundle > TMP_CREDITS
+          args: bundle --file TMP_CREDITS
         continue-on-error: true
       - run: diff CREDITS TMP_CREDITS
       - uses: actions-rs/cargo@v1.0.1
@@ -73,37 +73,4 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-latest
     runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2
-      - name: Cache cargo registory and index
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo build
-        uses: actions/cache@v1
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1.0.1
-        with:
-          command: install
-          args: cargo-lichking
-      - uses: actions-rs/cargo@v1.0.1
-        with:
-          command: lichking
-          args: bundle > TMP_CREDITS
-        continue-on-error: true
-      - run: diff CREDITS TMP_CREDITS
-      - uses: actions-rs/cargo@v1.0.1
-        with:
-          command: build
-          args: --release --target=${{ matrix.target }}
-          use-cross: true
+    steps: *define_steps
