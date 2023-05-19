@@ -71,14 +71,11 @@ impl Cmd for Assume {
 
 async fn generate_sdk_config(source: &v1::Source) -> aws_config::SdkConfig {
     let mut config_loader = aws_config::from_env();
-    if let Some(credential) = &source.credential {
-        let credential_provider = Credentials::new(
-            &credential.aws_access_key_id,
-            &credential.aws_secret_access_key,
-            None,
-            None,
-            "Static",
-        );
+    if let (Some(aws_access_key), Some(aws_secret_access_key)) =
+        (&source.aws_access_key_id, &source.aws_secret_access_key)
+    {
+        let credential_provider =
+            Credentials::new(aws_access_key, aws_secret_access_key, None, None, "Static");
         config_loader = config_loader.credentials_provider(credential_provider);
     }
     if let Some(profile) = &source.profile {

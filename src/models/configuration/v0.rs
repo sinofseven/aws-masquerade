@@ -64,8 +64,9 @@ impl Account {
         let source = v1::Source {
             name: profile.to_string(),
             profile: self.source_profile.clone(),
-            credential: None,
             region: None,
+            aws_access_key_id: None,
+            aws_secret_access_key: None,
             mfa_arn: self.mfa_arn.clone(),
             mfa_secret: self.mfa_secret.clone(),
             note: None,

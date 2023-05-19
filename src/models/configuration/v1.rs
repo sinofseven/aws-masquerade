@@ -88,18 +88,10 @@ impl std::fmt::Display for CliOutputTarget {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct Credential {
-    pub aws_access_key_id: String,
-    pub aws_secret_access_key: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Source {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub credential: Option<Credential>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -108,12 +100,20 @@ pub struct Source {
     pub mfa_secret: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aws_access_key_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aws_secret_access_key: Option<String>,
 }
 
 impl Validation for Source {
     fn validate(&self) -> Result<(), String> {
-        if self.profile.is_some() && self.credential.is_some() {
-            return Err("It is not possible to set both 'profile' and 'credential'.".to_string());
+        if (self.aws_access_key_id.is_some() && self.aws_secret_access_key.is_none())
+            || (self.aws_access_key_id.is_none() && self.aws_secret_access_key.is_some())
+        {
+            return Err(
+                "Both aws_access_key_id and aws_secret_access_key are required".to_string(),
+            );
         }
 
         if self.mfa_arn.is_none() && self.mfa_secret.is_some() {
@@ -201,11 +201,11 @@ impl Validation for Configuration {
 
 impl Configuration {
     pub fn new(text: &str) -> Result<Configuration, String> {
-        toml::from_str(text).map_err(|e| format!("failed to deserialize configuration: {}", e))
+        toml::from_str(text)
+            .map_err(|e| format!("failed to deserialize configuration: {}", e))
     }
 
     pub fn to_string(&self) -> Result<String, String> {
-        toml::to_string_pretty(self)
-            .map_err(|e| format!("failed to serialize configuration: {}", e))
+        toml::to_string(self).map_err(|e| format!("failed to serialize configuration: {}", e))
     }
 }
