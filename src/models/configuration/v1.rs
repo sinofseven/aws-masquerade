@@ -201,8 +201,7 @@ impl Validation for Configuration {
 
 impl Configuration {
     pub fn new(text: &str) -> Result<Configuration, String> {
-        toml::from_str(text)
-            .map_err(|e| format!("failed to deserialize configuration: {}", e))
+        toml::from_str(text).map_err(|e| format!("failed to deserialize configuration: {}", e))
     }
 
     pub fn to_string(&self) -> Result<String, String> {

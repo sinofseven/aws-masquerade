@@ -332,11 +332,14 @@ fn exec_output(
         }
         CredentialOutputTarget::SharedCredentials => {
             let path = crate::path::get_path_aws_shared_credentials()?;
-            let text = crate::fs::load_text(&path)?;
-            let mut configure: BTreeMap<String, BTreeMap<String, String>> =
+            let mut configure: BTreeMap<String, BTreeMap<String, String>> = if path.exists() {
+                let text = crate::fs::load_text(&path)?;
                 serde_ini::from_str(&text).map_err(|e| {
                     format!("failed to deserialize aws shared credential file: {}", e)
-                })?;
+                })?
+            } else {
+                BTreeMap::new()
+            };
 
             let mut profile = match configure.get(name) {
                 Some(profile) => profile.clone(),
