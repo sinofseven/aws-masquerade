@@ -1,7 +1,7 @@
 [package]
 name = "aws-masquerade"
 description = "AWS Assume Role CLI Tool"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["sinofseven <em.s.00001@gmail.com>"]
 edition = "2021"
 
