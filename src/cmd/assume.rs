@@ -1,184 +1,414 @@
-use crate::lib::cmd_base::Cmd;
-use crate::lib::fs::{
-    add_into_shared_credentials, add_shared_config, load_config, Account, CredentialOutputTarget,
-};
-use crate::lib::io::{get_input, MasqueradeOutputExt};
-use crate::lib::totp::TOTP;
-use clap::{App, Arg, ArgMatches, SubCommand};
-use rusoto_core::credential::ProfileProvider;
-use rusoto_core::{HttpClient, Region};
-use rusoto_sts::{AssumeRoleRequest, AssumeRoleResponse, Sts, StsClient};
+use crate::base::{Cmd, Validation};
+use crate::models::configuration::v1;
+use crate::models::configuration::v1::{CliOutputTarget, CredentialOutputTarget};
+use crate::variables::cmd::assume;
+use crate::variables::output::environment_variables as env;
+use crate::variables::output::shared_credentials;
+use aws_types::Credentials;
+use clap::{arg, ArgMatches, Command};
+use serde::Serialize;
+use std::collections::BTreeMap;
 
-const TOKEN_ARG_NAME: &str = "token";
-const ASSUME_TYPE_ARG_NAME: &str = "assume_type";
-
-pub const NAME: &str = "assume";
 pub struct Assume;
 
 impl Cmd for Assume {
-    fn subcommand<'a, 'b>() -> App<'a, 'b> {
-        SubCommand::with_name(NAME)
-            .about("exec assume role")
+    const NAME: &'static str = assume::NAME;
+
+    fn subcommand() -> Command {
+        Command::new(Self::NAME)
+            .about("execute assume role")
+            .arg(arg!(<TARGET_NAME>))
             .arg(
-                Arg::with_name("account")
-                    .required(true)
-                    .long("account-name")
-                    .short("a")
-                    .takes_value(true)
-                    .help("Name of the account"),
-            )
-            .arg(
-                Arg::with_name(TOKEN_ARG_NAME)
-                    .long("mfa-token")
-                    .short("t")
-                    .takes_value(true)
-                    .help("Input Mfa Token"),
-            )
-            .arg(
-                Arg::with_name(ASSUME_TYPE_ARG_NAME)
-                    .long("credential-output-target")
-                    .short("c")
-                    .takes_value(true)
-                    .possible_values(&[
-                        CredentialOutputTarget::Bash.to_str(),
-                        CredentialOutputTarget::Fish.to_str(),
-                        CredentialOutputTarget::PowerShell.to_str(),
-                        CredentialOutputTarget::SharedCredentials.to_str(),
-                    ])
-                    .help("Output Target"),
+                arg!(-c <CREDENTIAL_OUTPUT> "output of assume role result")
+                    .long("credential-output")
+                    .value_parser(clap::builder::EnumValueParser::<CredentialOutputTarget>::new()),
             )
     }
 
     fn run(args: &ArgMatches) -> Result<(), String> {
-        let account_name = args.value_of("account").unwrap();
-        let config = load_config()?;
-        let account_data = match config.accounts.get(account_name) {
-            None => return Err(format!("Account \"{}\" does not exist.", account_name)),
-            Some(data) => data,
+        let name_target: &String = args.get_one("TARGET_NAME").unwrap();
+
+        let config = crate::models::configuration::load_configuration()?;
+        config.validate()?;
+        let is_save_totp_last_counter = &config
+            .core
+            .save_totp_counter_history
+            .map_or_else(|| false, |f| f);
+
+        let target = config
+            .target
+            .iter()
+            .find(|t| &t.name == name_target)
+            .ok_or_else(|| format!("target(name={}) is not found.", name_target))?;
+        let source = config
+            .source
+            .iter()
+            .find(|s| s.name == target.source)
+            .ok_or_else(|| format!("source(name={} is not found.", &target.source))?;
+
+        let credential_output = match args.get_one::<CredentialOutputTarget>("CREDENTIAL_OUTPUT") {
+            Some(output) => output,
+            None => &target.credential_output,
         };
 
-        let output_target = get_credential_output_target(args, account_data)?;
+        let resp = tokio::runtime::Runtime::new()
+            .map_err(|e| format!("failed to create async runtime: {}", e))?
+            .block_on(exec_assume(source, target, is_save_totp_last_counter))
+            .map_err(|e| format!("failed to execute assume role: {}", e))?;
 
-        let client = create_sts_client(account_data)?;
-        let option = create_assume_role_option(args, account_data)?;
-        let result = exec_assume_role(option, &client)?;
+        exec_output(
+            credential_output,
+            &target.region,
+            &target.cli_output,
+            &target.note,
+            &target.name,
+            &resp,
+        )?;
 
-        output(
-            &account_name.to_string(),
-            account_data,
-            &result,
-            &output_target,
-        )
+        Ok(())
     }
 }
 
-fn exec_assume_role(
-    option: AssumeRoleRequest,
-    client: &StsClient,
-) -> Result<AssumeRoleResponse, String> {
-    let mut runtime = match tokio::runtime::Runtime::new() {
-        Ok(runtime) => runtime,
-        Err(e) => return Err(format!("failed to create async runtime: {}", e)),
-    };
-    let resp = runtime.block_on(client.assume_role(option));
-    match resp {
-        Ok(resp) => Ok(resp),
-        Err(e) => Err(format!("failed to assume role: {}", e)),
+async fn generate_sdk_config(source: &v1::Source) -> aws_config::SdkConfig {
+    let mut config_loader = aws_config::from_env();
+    if let (Some(aws_access_key), Some(aws_secret_access_key)) =
+        (&source.aws_access_key_id, &source.aws_secret_access_key)
+    {
+        let credential_provider =
+            Credentials::new(aws_access_key, aws_secret_access_key, None, None, "Static");
+        config_loader = config_loader.credentials_provider(credential_provider);
     }
+    if let Some(profile) = &source.profile {
+        let credential_provider = aws_config::profile::ProfileFileCredentialsProvider::builder()
+            .profile_name(profile)
+            .build();
+        config_loader = config_loader.credentials_provider(credential_provider);
+    }
+    let region = source.region.clone().map_or_else(
+        || aws_types::region::Region::new("us-east-1"),
+        aws_types::region::Region::new,
+    );
+
+    config_loader.region(region).load().await
 }
 
-fn create_sts_client(account: &Account) -> Result<StsClient, String> {
-    if let Some(source_profile) = &account.source_profile {
-        let http_client = match HttpClient::new() {
-            Ok(client) => client,
-            Err(e) => return Err(format!("failed to create HTTP Client: {}", e)),
-        };
-        let mut provider = match ProfileProvider::new() {
-            Ok(provider) => provider,
-            Err(e) => {
-                return Err(format!(
-                    "failed to create Profile Credential Provider: {}",
-                    e
-                ))
-            }
-        };
-        provider.set_profile(source_profile);
-        Ok(StsClient::new_with(http_client, provider, Region::UsEast1))
-    } else {
-        Ok(StsClient::new(Region::UsEast1))
-    }
-}
+async fn exec_assume(
+    source: &v1::Source,
+    target: &v1::Target,
+    is_save_totp_last_counter: &bool,
+) -> Result<aws_sdk_sts::output::AssumeRoleOutput, String> {
+    let sdk_config = generate_sdk_config(source).await;
+    let client = aws_sdk_sts::Client::new(&sdk_config);
 
-fn create_assume_role_option(
-    args: &ArgMatches,
-    account: &Account,
-) -> Result<AssumeRoleRequest, String> {
-    let mut option = AssumeRoleRequest {
-        role_arn: account.role_arn.clone(),
-        role_session_name: uuid::Uuid::new_v4().to_string(),
-        ..Default::default()
-    };
-    if let Some(mfa_arn) = &account.mfa_arn {
-        option.serial_number = Some(mfa_arn.clone());
-        option.token_code = Some(get_mfa_token(args, account)?);
+    let mut assume_role = client
+        .assume_role()
+        .role_session_name(format!("session-{}", uuid::Uuid::new_v4()))
+        .role_arn(&target.role_arn);
+
+    if let Some(duration_seconds) = &target.duration_seconds {
+        assume_role = assume_role.duration_seconds(i32::from(*duration_seconds));
     }
 
-    Ok(option)
-}
-
-fn get_mfa_token(args: &ArgMatches, account: &Account) -> Result<String, String> {
-    match args.value_of(TOKEN_ARG_NAME) {
-        Some(token) => Ok(token.to_string()),
-        None => {
-            if let Some(secret) = &account.mfa_secret {
-                let totp = TOTP::new(secret)?;
-                Ok(totp.generate())
-            } else {
-                Ok(get_input("\nMFA TOKEN: "))
-            }
-        }
+    if let Some(mfa_arn) = &source.mfa_arn {
+        assume_role = assume_role.serial_number(mfa_arn);
+        let token = &source.mfa_secret.as_ref().map_or_else(
+            || Ok(crate::io::get_input("\nMFA TOKEN: ")),
+            |secret| crate::totp::generate(secret, is_save_totp_last_counter),
+        )?;
+        assume_role = assume_role.token_code(token);
     }
+
+    assume_role
+        .send()
+        .await
+        .map_err(|e| format!("failed to assume role: {}", e))
 }
 
-fn get_credential_output_target(
-    args: &ArgMatches,
-    account: &Account,
-) -> Result<CredentialOutputTarget, String> {
-    match args.value_of(ASSUME_TYPE_ARG_NAME) {
-        None => Ok(account.credential_output),
-        Some(target) => CredentialOutputTarget::from_str(target),
-    }
+#[derive(Debug, Clone, Serialize)]
+struct JsonCredential {
+    access_key_id: String,
+    secret_access_key: String,
+    session_token: String,
 }
 
-fn output(
-    account_name: &String,
-    account_data: &Account,
-    assume_result: &AssumeRoleResponse,
+fn exec_output(
     output_target: &CredentialOutputTarget,
+    region: &Option<String>,
+    cli_output: &Option<CliOutputTarget>,
+    note: &Option<String>,
+    name: &str,
+    output_assume_role: &aws_sdk_sts::output::AssumeRoleOutput,
 ) -> Result<(), String> {
+    let args = {
+        let args: Vec<String> = std::env::args().collect();
+        args.join(" ")
+    };
+    let credential = output_assume_role
+        .credentials()
+        .ok_or_else(|| "there is not credentials in assume role result.".to_string())?;
+    let model = JsonCredential {
+        access_key_id: credential
+            .access_key_id()
+            .ok_or_else(|| {
+                format!(
+                    "there is not access_key_id in credentials. {:?}",
+                    credential
+                )
+            })?
+            .to_string(),
+        secret_access_key: credential
+            .secret_access_key()
+            .ok_or_else(|| {
+                format!(
+                    "there is not secret_access_key in credentials. {:?}",
+                    credential
+                )
+            })?
+            .to_string(),
+        session_token: credential
+            .session_token()
+            .ok_or_else(|| format!("there is not session_token. {:?}", credential))?
+            .to_string(),
+    };
     let text = match output_target {
+        CredentialOutputTarget::Json => serde_json::to_string_pretty(&model)
+            .map_err(|e| format!("failed to serialize assume role result: {}", e))?,
         CredentialOutputTarget::Bash => {
-            assume_result.create_bash_credentials(&account_data.output, &account_data.region)
+            let mut lines: Vec<String> = Vec::new();
+            lines.push(format!(
+                "export {}=\"{}\"",
+                env::AWS_ACCESS_KEY_ID,
+                model.access_key_id
+            ));
+            lines.push(format!(
+                "export {}=\"{}\"",
+                env::AWS_SECRET_ACCESS_KEY,
+                model.secret_access_key
+            ));
+            lines.push(format!(
+                "export {}=\"{}\"",
+                env::AWS_SESSION_TOKEN,
+                model.session_token
+            ));
+            lines.push(format!(
+                "export {}=\"{}\"",
+                env::AWS_SECURITY_TOKEN,
+                model.session_token
+            ));
+
+            if let Some(region) = region {
+                lines.push(format!("export {}=\"{}\"", env::AWS_DEFAULT_REGION, region));
+                lines.push(format!("export {}=\"{}\"", env::AWS_REGION, region));
+            }
+
+            if let Some(cli_output) = cli_output {
+                lines.push(format!(
+                    "export {}=\"{}\"",
+                    env::AWS_DEFAULT_OUTPUT,
+                    cli_output
+                ));
+            }
+
+            if let Some(note) = note {
+                for (i, note_line) in note.split('\n').enumerate() {
+                    let prefix = match i {
+                        0 => "note: ",
+                        _ => " ",
+                    };
+                    lines.push(format!("# {}{}", prefix, note_line))
+                }
+            }
+
+            lines.push("# Run this to configure your shell:".to_string());
+            lines.push(format!("# eval $({})", args));
+            lines.join("\n")
         }
         CredentialOutputTarget::Fish => {
-            assume_result.create_fish_credentials(&account_data.output, &account_data.region)
+            let mut lines: Vec<String> = Vec::new();
+            lines.push(format!(
+                "set -gx {} \"{}\"",
+                env::AWS_ACCESS_KEY_ID,
+                model.access_key_id
+            ));
+            lines.push(format!(
+                "set -gx {} \"{}\"",
+                env::AWS_SECRET_ACCESS_KEY,
+                model.secret_access_key
+            ));
+            lines.push(format!(
+                "set -gx {} \"{}\"",
+                env::AWS_SESSION_TOKEN,
+                model.session_token
+            ));
+            lines.push(format!(
+                "set -gx {} \"{}\"",
+                env::AWS_SECURITY_TOKEN,
+                model.session_token
+            ));
+
+            if let Some(region) = region {
+                lines.push(format!(
+                    "set -gx {} \"{}\"",
+                    env::AWS_DEFAULT_REGION,
+                    region
+                ));
+                lines.push(format!("set -gx {} \"{}\"", env::AWS_REGION, region));
+            }
+
+            if let Some(cli_output) = cli_output {
+                lines.push(format!(
+                    "set -gx {} \"{}\"",
+                    env::AWS_DEFAULT_OUTPUT,
+                    cli_output
+                ));
+            }
+
+            if let Some(note) = note {
+                for (i, note_line) in note.split('\n').enumerate() {
+                    let prefix = match i {
+                        0 => "note: ",
+                        _ => " ",
+                    };
+                    lines.push(format!("# {}{}", prefix, note_line))
+                }
+            }
+
+            lines.push("# Run this to configure your shell:".to_string());
+            lines.push(format!("# {} | source", args));
+
+            lines.join("\n")
         }
         CredentialOutputTarget::PowerShell => {
-            assume_result.create_power_shell_credentials(&account_data.output, &account_data.region)
+            let mut lines: Vec<String> = Vec::new();
+
+            lines.push(format!(
+                "$env:{}=\"{}\"",
+                env::AWS_ACCESS_KEY_ID,
+                model.access_key_id
+            ));
+            lines.push(format!(
+                "$env:{}=\"{}\"",
+                env::AWS_SECRET_ACCESS_KEY,
+                model.secret_access_key
+            ));
+            lines.push(format!(
+                "$env:{}=\"{}\"",
+                env::AWS_SESSION_TOKEN,
+                model.session_token
+            ));
+            lines.push(format!(
+                "$env:{}=\"{}\"",
+                env::AWS_SECURITY_TOKEN,
+                model.session_token
+            ));
+
+            if let Some(region) = region {
+                lines.push(format!("$env:{}=\"{}\"", env::AWS_DEFAULT_REGION, region));
+                lines.push(format!("$env:{}=\"{}\"", env::AWS_REGION, region));
+            }
+
+            if let Some(cli_output) = cli_output {
+                lines.push(format!(
+                    "$env:{}=\"{}\"",
+                    env::AWS_DEFAULT_OUTPUT,
+                    cli_output
+                ));
+            }
+
+            if let Some(note) = note {
+                for (i, note_line) in note.split('\n').enumerate() {
+                    let prefix = match i {
+                        0 => "note: ",
+                        _ => " ",
+                    };
+                    lines.push(format!("# {}{}", prefix, note_line));
+                }
+            }
+
+            lines.push("# Run this to configure your shell:".to_string());
+            lines.push(format!("# {} | Invoke-Expression", args));
+
+            lines.join("\n")
         }
         CredentialOutputTarget::SharedCredentials => {
-            let cred = assume_result.create_shared_credentials();
-            if let Some(config) = account_data.create_shared_config() {
-                add_shared_config(account_name, &config)?;
-            }
-            add_into_shared_credentials(account_name, &cred)?;
+            let path = crate::path::get_path_aws_shared_credentials()?;
+            let mut configure: BTreeMap<String, BTreeMap<String, String>> = if path.exists() {
+                let text = crate::fs::load_text(&path)?;
+                serde_ini::from_str(&text).map_err(|e| {
+                    format!("failed to deserialize aws shared credential file: {}", e)
+                })?
+            } else {
+                BTreeMap::new()
+            };
 
-            println!("Your new access key pair has been stored in the AWS configuration");
-            println!("To use this credential, call the AWS CLI with the --profile option (e.g. aws sts get-caller-identity --profile {})", account_name);
-            return Ok(());
+            let mut profile = match configure.get(name) {
+                Some(profile) => profile.clone(),
+                None => BTreeMap::new(),
+            };
+
+            profile.insert(
+                shared_credentials::AWS_ACCESS_KEY_ID.to_string(),
+                model.access_key_id,
+            );
+            profile.insert(
+                shared_credentials::AWS_SECRET_ACCESS_KEY.to_string(),
+                model.secret_access_key,
+            );
+            profile.insert(
+                shared_credentials::AWS_SESSION_TOKEN.to_string(),
+                model.session_token.clone(),
+            );
+            profile.insert(
+                shared_credentials::AWS_SECURITY_TOKEN.to_string(),
+                model.session_token,
+            );
+
+            if let Some(expires) = credential.expiration() {
+                let naive =
+                    chrono::NaiveDateTime::from_timestamp(expires.secs(), expires.subsec_nanos());
+                let datetime: chrono::DateTime<chrono::Utc> =
+                    chrono::DateTime::from_utc(naive, chrono::Utc);
+                profile.insert(
+                    shared_credentials::X_SECURITY_TOKEN_EXPIRES.to_string(),
+                    datetime.to_rfc3339(),
+                );
+            }
+
+            if let Some(assumed_role_user) = output_assume_role.assumed_role_user() {
+                if let Some(arn) = assumed_role_user.arn() {
+                    profile.insert(
+                        shared_credentials::X_PRINCIPAL_ARN.to_string(),
+                        arn.to_string(),
+                    );
+                }
+            }
+
+            if let Some(region) = region {
+                profile.insert(shared_credentials::REGION.to_string(), region.to_string());
+            }
+
+            if let Some(output) = cli_output {
+                profile.insert(shared_credentials::OUTPUT.to_string(), output.to_string());
+            }
+
+            configure.insert(name.to_string(), profile);
+
+            let text = serde_ini::to_string(&configure)
+                .map_err(|e| format!("failed to serialize aws shared credentials file: {}", e))?;
+            crate::fs::save_text(&path, &text)?;
+
+            let mut lines: Vec<String> = Vec::new();
+
+            lines.push(
+                "Your new access key pair has been stored in the AWS configuration".to_string(),
+            );
+            lines.push(format!("To use this credential, call the AWS CLI with the --profile option (e.g. aws sts get-caller-identity --profile {})", name));
+
+            lines.join("\n")
         }
     };
 
     println!("{}", text);
+
     Ok(())
 }
