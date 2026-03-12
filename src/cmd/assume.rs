@@ -4,7 +4,7 @@ use crate::models::configuration::v1::{CliOutputTarget, CredentialOutputTarget};
 use crate::variables::cmd::assume;
 use crate::variables::output::environment_variables as env;
 use crate::variables::output::shared_credentials;
-use aws_types::Credentials;
+use aws_sdk_sts::config::Credentials;
 use clap::{arg, ArgMatches, Command};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -70,7 +70,7 @@ impl Cmd for Assume {
 }
 
 async fn generate_sdk_config(source: &v1::Source) -> aws_config::SdkConfig {
-    let mut config_loader = aws_config::from_env();
+    let mut config_loader = aws_config::defaults(aws_config::BehaviorVersion::latest());
     if let (Some(aws_access_key), Some(aws_secret_access_key)) =
         (&source.aws_access_key_id, &source.aws_secret_access_key)
     {
@@ -96,7 +96,7 @@ async fn exec_assume(
     source: &v1::Source,
     target: &v1::Target,
     is_save_totp_last_counter: &bool,
-) -> Result<aws_sdk_sts::output::AssumeRoleOutput, String> {
+) -> Result<aws_sdk_sts::operation::assume_role::AssumeRoleOutput, String> {
     let sdk_config = generate_sdk_config(source).await;
     let client = aws_sdk_sts::Client::new(&sdk_config);
 
@@ -121,7 +121,7 @@ async fn exec_assume(
     assume_role
         .send()
         .await
-        .map_err(|e| format!("failed to assume role: {}", e))
+        .map_err(|e| format!("failed to assume role: {e:#?}"))
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -137,7 +137,7 @@ fn exec_output(
     cli_output: &Option<CliOutputTarget>,
     note: &Option<String>,
     name: &str,
-    output_assume_role: &aws_sdk_sts::output::AssumeRoleOutput,
+    output_assume_role: &aws_sdk_sts::operation::assume_role::AssumeRoleOutput,
 ) -> Result<(), String> {
     let args = {
         let args: Vec<String> = std::env::args().collect();
@@ -147,28 +147,9 @@ fn exec_output(
         .credentials()
         .ok_or_else(|| "there is not credentials in assume role result.".to_string())?;
     let model = JsonCredential {
-        access_key_id: credential
-            .access_key_id()
-            .ok_or_else(|| {
-                format!(
-                    "there is not access_key_id in credentials. {:?}",
-                    credential
-                )
-            })?
-            .to_string(),
-        secret_access_key: credential
-            .secret_access_key()
-            .ok_or_else(|| {
-                format!(
-                    "there is not secret_access_key in credentials. {:?}",
-                    credential
-                )
-            })?
-            .to_string(),
-        session_token: credential
-            .session_token()
-            .ok_or_else(|| format!("there is not session_token. {:?}", credential))?
-            .to_string(),
+        access_key_id: credential.access_key_id().to_string(),
+        secret_access_key: credential.secret_access_key().to_string(),
+        session_token: credential.session_token().to_string(),
     };
     let text = match output_target {
         CredentialOutputTarget::Json => serde_json::to_string_pretty(&model)
@@ -363,11 +344,11 @@ fn exec_output(
                 model.session_token,
             );
 
-            if let Some(expires) = credential.expiration() {
-                let naive =
-                    chrono::NaiveDateTime::from_timestamp(expires.secs(), expires.subsec_nanos());
-                let datetime: chrono::DateTime<chrono::Utc> =
-                    chrono::DateTime::from_utc(naive, chrono::Utc);
+            {
+                let expires = credential.expiration();
+                let naive = chrono::NaiveDateTime::from_timestamp_opt(expires.secs(), expires.subsec_nanos())
+                    .unwrap_or_default();
+                let datetime = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive, chrono::Utc);
                 profile.insert(
                     shared_credentials::X_SECURITY_TOKEN_EXPIRES.to_string(),
                     datetime.to_rfc3339(),
@@ -375,12 +356,11 @@ fn exec_output(
             }
 
             if let Some(assumed_role_user) = output_assume_role.assumed_role_user() {
-                if let Some(arn) = assumed_role_user.arn() {
-                    profile.insert(
-                        shared_credentials::X_PRINCIPAL_ARN.to_string(),
-                        arn.to_string(),
-                    );
-                }
+                let arn = assumed_role_user.arn();
+                profile.insert(
+                    shared_credentials::X_PRINCIPAL_ARN.to_string(),
+                    arn.to_string(),
+                );
             }
 
             if let Some(region) = region {
