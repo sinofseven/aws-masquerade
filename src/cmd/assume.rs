@@ -30,10 +30,10 @@ impl Cmd for Assume {
 
         let config = crate::models::configuration::load_configuration()?;
         config.validate()?;
-        let is_save_totp_last_counter = &config
+        let is_save_totp_last_counter = config
             .core
             .save_totp_counter_history
-            .map_or_else(|| false, |f| f);
+            .unwrap_or(false);
 
         let target = config
             .target
@@ -53,7 +53,7 @@ impl Cmd for Assume {
 
         let resp = tokio::runtime::Runtime::new()
             .map_err(|e| format!("failed to create async runtime: {}", e))?
-            .block_on(exec_assume(source, target, is_save_totp_last_counter))
+            .block_on(exec_assume(source, target, &is_save_totp_last_counter))
             .map_err(|e| format!("failed to execute assume role: {}", e))?;
 
         exec_output(
@@ -346,9 +346,8 @@ fn exec_output(
 
             {
                 let expires = credential.expiration();
-                let naive = chrono::NaiveDateTime::from_timestamp_opt(expires.secs(), expires.subsec_nanos())
+                let datetime = chrono::DateTime::from_timestamp(expires.secs(), expires.subsec_nanos())
                     .unwrap_or_default();
-                let datetime = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive, chrono::Utc);
                 profile.insert(
                     shared_credentials::X_SECURITY_TOKEN_EXPIRES.to_string(),
                     datetime.to_rfc3339(),
