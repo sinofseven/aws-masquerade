@@ -32,7 +32,7 @@ pub mod cmd {
             pub const SHOW: &str = "show";
             pub const ADD: &str = "add";
             pub const EDIT: &str = "edit";
-            pub const REMOTE: &str = "remove";
+            pub const REMOVE: &str = "remove";
         }
     }
 }
