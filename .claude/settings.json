@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "luciferous-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "sinofseven/luciferous-plugins-for-claude-code"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "kanban-kit@luciferous-plugins": true
+  }
+}

@@ -18,18 +18,18 @@ name = "aws-masquerade"
 path = "src/main.rs"
 
 [dependencies]
-clap = {version = "4.0.4", features=["cargo"]}
-data-encoding = "2.3.2"
-serde = {version = "1.0.145", features=["derive"]}
-dirs = "4.0.0"
-serde_json = "1.0.85"
-toml = "0.5.9"
-colored = "2.0.0"
-tokio = {version = "1.21.2", features=["full"]}
+clap = {version = "4.6.1", features=["cargo"]}
+data-encoding = "2.11.0"
+serde = {version = "1.0.228", features=["derive"]}
+dirs = "6.0.0"
+serde_json = "1.0.149"
+toml = "1.1.2"
+colored = "3.1.1"
+tokio = {version = "1.52.3", features=["full"]}
 aws-config = { version = "1", features = ["behavior-version-latest"] }
 aws-types = "1"
 aws-sdk-sts = "1"
-ring = "0.16.20"
-uuid = {version = "1.2.1", features=["v4"]}
+ring = "0.17.14"
+uuid = {version = "1.23.1", features=["v4"]}
 serde_ini = "0.2.0"
-chrono = "0.4.22"
+chrono = "0.4.44"
