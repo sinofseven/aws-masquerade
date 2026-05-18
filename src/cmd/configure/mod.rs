@@ -1,80 +1,54 @@
-use crate::base::{Cmd, Validation};
+use crate::base::Validation;
 use crate::path;
-use crate::variables::cmd::configure;
-use clap::{ArgMatches, Command};
 
-pub struct Configure;
-struct Path;
-struct Validate;
-struct Migrate;
+#[derive(clap::Args)]
+#[command(
+    about = "Commands related to configuration files",
+    arg_required_else_help = true
+)]
+pub struct ConfigureArgs {
+    #[command(subcommand)]
+    command: ConfigureCommand,
+}
 
-impl Cmd for Configure {
-    const NAME: &'static str = configure::NAME;
+#[derive(clap::Subcommand)]
+enum ConfigureCommand {
+    /// show config file path
+    Path,
+    Validate,
+    Migrate,
+}
 
-    fn subcommand() -> Command {
-        Command::new(Self::NAME)
-            .about("Commands related to configuration files")
-            .subcommand_required(true)
-            .arg_required_else_help(true)
-            .subcommand(Path::subcommand())
-            .subcommand(Validate::subcommand())
-            .subcommand(Migrate::subcommand())
-    }
-
-    fn run(args: &ArgMatches) -> Result<(), String> {
-        match args.subcommand() {
-            Some((Path::NAME, sub_args)) => Path::run(sub_args),
-            Some((Validate::NAME, sub_args)) => Validate::run(sub_args),
-            Some((Migrate::NAME, sub_args)) => Migrate::run(sub_args),
-            _ => unreachable!("This is Bug in 'cmd/configure.rs'."), // If all subcommands are defined above, anything else is unreachabe!()
+impl ConfigureArgs {
+    pub fn run(self) -> Result<(), String> {
+        match self.command {
+            ConfigureCommand::Path => run_path(),
+            ConfigureCommand::Validate => run_validate(),
+            ConfigureCommand::Migrate => run_migrate(),
         }
     }
 }
 
-impl Cmd for Path {
-    const NAME: &'static str = configure::sub_command::PATH;
-
-    fn subcommand() -> Command {
-        Command::new(Self::NAME).about("show config file path")
-    }
-
-    fn run(_args: &ArgMatches) -> Result<(), String> {
-        let (result, _) = path::get_current_path_masquerade_config()?;
-        println!("{}", result.display());
-        Ok(())
-    }
+fn run_path() -> Result<(), String> {
+    let (result, _) = path::get_current_path_masquerade_config()?;
+    println!("{}", result.display());
+    Ok(())
 }
 
-impl Cmd for Validate {
-    const NAME: &'static str = configure::sub_command::VALIDATE;
-
-    fn subcommand() -> Command {
-        Command::new(Self::NAME)
-    }
-
-    fn run(_args: &ArgMatches) -> Result<(), String> {
-        let configure = crate::models::configuration::load_configuration()?;
-        configure.validate()
-    }
+fn run_validate() -> Result<(), String> {
+    let configure = crate::models::configuration::load_configuration()?;
+    configure.validate()
 }
 
-impl Cmd for Migrate {
-    const NAME: &'static str = configure::sub_command::MIGRATE;
+fn run_migrate() -> Result<(), String> {
+    let path_old = path::get_path_old_masquerade_config()?;
+    let path_latest = path::get_path_masquerade_config()?;
 
-    fn subcommand() -> Command {
-        Command::new(Self::NAME)
-    }
+    let text_old = crate::fs::load_text(&path_old)?;
+    let config_old = crate::models::configuration::v0::MasqueradeConfig::new(&text_old)?;
 
-    fn run(_args: &ArgMatches) -> Result<(), String> {
-        let path_old = path::get_path_old_masquerade_config()?;
-        let path_latest = path::get_path_masquerade_config()?;
+    let config_latest = config_old.migrate();
+    let text_latest = config_latest.to_string()?;
 
-        let text_old = crate::fs::load_text(&path_old)?;
-        let config_old = crate::models::configuration::v0::MasqueradeConfig::new(&text_old)?;
-
-        let config_latest = config_old.migrate();
-        let text_latest = config_latest.to_string()?;
-
-        crate::fs::save_text(&path_latest, &text_latest)
-    }
+    crate::fs::save_text(&path_latest, &text_latest)
 }

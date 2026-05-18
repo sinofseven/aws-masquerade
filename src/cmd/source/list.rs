@@ -1,27 +1,15 @@
-use crate::base::{Cmd, Validation};
-use crate::variables::cmd::source;
-use clap::{ArgMatches, Command};
+use crate::base::Validation;
 
-pub struct List;
+pub fn run() -> Result<(), String> {
+    let config = crate::models::configuration::load_configuration()?;
 
-impl Cmd for List {
-    const NAME: &'static str = source::sub_command::LIST;
+    config.validate()?;
 
-    fn subcommand() -> Command {
-        Command::new(Self::NAME).about("list source name")
-    }
+    let result: Vec<&String> = config.source.iter().map(|s| &s.name).collect();
+    let text = serde_json::to_string_pretty(&result)
+        .map_err(|e| format!("failed to serialize result: {}", e))?;
 
-    fn run(_args: &ArgMatches) -> Result<(), String> {
-        let config = crate::models::configuration::load_configuration()?;
+    println!("{}", text);
 
-        config.validate()?;
-
-        let result: Vec<&String> = config.source.iter().map(|s| &s.name).collect();
-        let text = serde_json::to_string_pretty(&result)
-            .map_err(|e| format!("failed to serialize result: {}", e))?;
-
-        println!("{}", text);
-
-        Ok(())
-    }
+    Ok(())
 }

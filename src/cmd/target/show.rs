@@ -1,35 +1,24 @@
-use crate::base::{Cmd, Validation};
-use crate::variables::cmd::target;
-use clap::{arg, ArgMatches, Command};
+use crate::base::Validation;
 
-pub struct Show;
+#[derive(clap::Args)]
+pub struct ShowArgs {
+    target_name: String,
+}
 
-impl Cmd for Show {
-    const NAME: &'static str = target::sub_command::SHOW;
+pub fn run(args: ShowArgs) -> Result<(), String> {
+    let config = crate::models::configuration::load_configuration()?;
+    config.validate()?;
 
-    fn subcommand() -> Command {
-        Command::new(Self::NAME)
-            .about("show detail of a target")
-            .arg(arg!(<TARGET_NAME>))
-    }
+    let target = config
+        .target
+        .iter()
+        .find(|t| t.name == args.target_name)
+        .ok_or_else(|| format!("target(name={}) is not found.", args.target_name))?;
 
-    fn run(args: &ArgMatches) -> Result<(), String> {
-        let name_target: &String = args.get_one("TARGET_NAME").unwrap();
+    let text = serde_json::to_string_pretty(&target)
+        .map_err(|e| format!("failed to serialize target: {}", e))?;
 
-        let config = crate::models::configuration::load_configuration()?;
-        config.validate()?;
+    println!("{}", text);
 
-        let target = config
-            .target
-            .iter()
-            .find(|t| &t.name == name_target)
-            .ok_or_else(|| format!("target(name={}) is not found.", name_target))?;
-
-        let text = serde_json::to_string_pretty(&target)
-            .map_err(|e| format!("failed to serialize target: {}", e))?;
-
-        println!("{}", text);
-
-        Ok(())
-    }
+    Ok(())
 }

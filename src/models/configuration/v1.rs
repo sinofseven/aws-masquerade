@@ -1,15 +1,20 @@
 use crate::base::Validation;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize, clap::ValueEnum)]
 pub enum CredentialOutputTarget {
     #[serde(rename = "json")]
+    #[value(name = "json", alias = "j", alias = "Json")]
     Json,
     #[serde(rename = "bash")]
+    #[value(name = "bash", alias = "b", alias = "Bash")]
     Bash,
     #[serde(rename = "fish")]
+    #[value(name = "fish", alias = "f", alias = "Fish")]
     Fish,
+    #[value(name = "PowerShell", alias = "p")]
     PowerShell,
+    #[value(name = "SharedCredentials", alias = "s")]
     SharedCredentials,
 }
 
@@ -28,39 +33,6 @@ impl CredentialOutputTarget {
             "s" => Ok(CredentialOutputTarget::SharedCredentials),
             _ => Err(format!("'{}' is not valid credential output.", text)),
         }
-    }
-}
-
-impl clap::ValueEnum for CredentialOutputTarget {
-    fn value_variants<'a>() -> &'a [Self] {
-        &[
-            CredentialOutputTarget::Json,
-            CredentialOutputTarget::Bash,
-            CredentialOutputTarget::Fish,
-            CredentialOutputTarget::PowerShell,
-            CredentialOutputTarget::SharedCredentials,
-        ]
-    }
-
-    fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
-        let result = match self {
-            CredentialOutputTarget::Json => {
-                clap::builder::PossibleValue::new("json").aliases(["j", "Json"])
-            }
-            CredentialOutputTarget::Bash => {
-                clap::builder::PossibleValue::new("bash").aliases(["b", "Bash"])
-            }
-            CredentialOutputTarget::Fish => {
-                clap::builder::PossibleValue::new("fish").aliases(["f", "Fish"])
-            }
-            CredentialOutputTarget::PowerShell => {
-                clap::builder::PossibleValue::new("PowerShell").aliases(["p"])
-            }
-            CredentialOutputTarget::SharedCredentials => {
-                clap::builder::PossibleValue::new("SharedCredentials").aliases(["s"])
-            }
-        };
-        Some(result)
     }
 }
 

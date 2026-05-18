@@ -1,55 +1,46 @@
-use crate::base::{Cmd, Validation};
+use crate::base::Validation;
 use crate::models::configuration::v1;
 use crate::models::configuration::v1::{CliOutputTarget, CredentialOutputTarget};
-use crate::variables::cmd::assume;
 use crate::variables::output::environment_variables as env;
 use crate::variables::output::shared_credentials;
 use aws_sdk_sts::config::Credentials;
-use clap::{arg, ArgMatches, Command};
 use serde::Serialize;
 use std::collections::BTreeMap;
 
-pub struct Assume;
+#[derive(clap::Args)]
+#[command(about = "execute assume role")]
+pub struct AssumeArgs {
+    target_name: String,
+    #[arg(
+        short = 'c',
+        long = "credential-output",
+        value_name = "CREDENTIAL_OUTPUT",
+        help = "output of assume role result"
+    )]
+    credential_output: Option<CredentialOutputTarget>,
+}
 
-impl Cmd for Assume {
-    const NAME: &'static str = assume::NAME;
-
-    fn subcommand() -> Command {
-        Command::new(Self::NAME)
-            .about("execute assume role")
-            .arg(arg!(<TARGET_NAME>))
-            .arg(
-                arg!(-c <CREDENTIAL_OUTPUT> "output of assume role result")
-                    .long("credential-output")
-                    .value_parser(clap::builder::EnumValueParser::<CredentialOutputTarget>::new()),
-            )
-    }
-
-    fn run(args: &ArgMatches) -> Result<(), String> {
-        let name_target: &String = args.get_one("TARGET_NAME").unwrap();
-
+impl AssumeArgs {
+    pub fn run(self) -> Result<(), String> {
         let config = crate::models::configuration::load_configuration()?;
         config.validate()?;
-        let is_save_totp_last_counter = config
-            .core
-            .save_totp_counter_history
-            .unwrap_or(false);
+        let is_save_totp_last_counter = config.core.save_totp_counter_history.unwrap_or(false);
 
         let target = config
             .target
             .iter()
-            .find(|t| &t.name == name_target)
-            .ok_or_else(|| format!("target(name={}) is not found.", name_target))?;
+            .find(|t| t.name == self.target_name)
+            .ok_or_else(|| format!("target(name={}) is not found.", self.target_name))?;
         let source = config
             .source
             .iter()
             .find(|s| s.name == target.source)
             .ok_or_else(|| format!("source(name={} is not found.", &target.source))?;
 
-        let credential_output = match args.get_one::<CredentialOutputTarget>("CREDENTIAL_OUTPUT") {
-            Some(output) => output,
-            None => &target.credential_output,
-        };
+        let credential_output = self
+            .credential_output
+            .as_ref()
+            .unwrap_or(&target.credential_output);
 
         let resp = tokio::runtime::Runtime::new()
             .map_err(|e| format!("failed to create async runtime: {}", e))?

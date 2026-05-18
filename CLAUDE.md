@@ -26,22 +26,33 @@ cargo clippy                 # lint
 
 ### サブコマンド構造とディスパッチ規約
 
-`main.rs` がトップレベルの 4 サブコマンド (`configure`, `source`, `target`, `assume`) を登録し、各構造体が `base::Cmd` トレイトを実装してディスパッチする一貫したパターンを採る:
+clap の derive API (`#[derive(Parser)]` / `#[derive(Subcommand)]` / `#[derive(Args)]` / `#[derive(ValueEnum)]`) で構築する。`main.rs` の `Cli` がトップレベル、`Commands` enum がトップレベルの 4 サブコマンド (`configure`, `source`, `target`, `assume`) を保持し、`Cli::parse().command.run()` でディスパッチする:
 
 ```rust
-pub trait Cmd {
-    const NAME: &'static str;          // variables::cmd::* の定数を参照すること
-    fn subcommand() -> Command;        // clap の Command を返す
-    fn run(args: &ArgMatches) -> Result<(), String>;
+#[derive(Parser)]
+#[command(version, about, long_about = None, arg_required_else_help = true)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(clap::Subcommand)]
+enum Commands {
+    Configure(ConfigureArgs),
+    Source(SourceArgs),
+    Target(TargetArgs),
+    Assume(AssumeArgs),
 }
 ```
 
-新しいサブコマンドを追加するときは:
-1. `variables.rs` の `cmd::<group>::sub_command` にコマンド名定数を追加 (文字列をハードコードしない)
-2. `src/cmd/<group>/<name>.rs` に `Cmd` を実装した構造体を作成
-3. `src/cmd/<group>/mod.rs` の `subcommand()`/`run()` に登録
+各群の Args 構造体 (`ConfigureArgs` / `SourceArgs` / `TargetArgs` / `AssumeArgs`) は内部に `#[command(subcommand)]` で leaf enum を持ち、`pub fn run(self) -> Result<(), String>` を実装してディスパッチする。leaf enum のユニット variant は引数なしのサブコマンド、`Variant(XxxArgs)` 形式は引数ありのサブコマンドに対応する。サブコマンド名は enum variant 名から PascalCase → kebab-case で自動生成されるので、命名規約に揃えれば名前定数は不要。
 
-ネストしたグループ (`configure`, `source`, `target`) は `Cmd` を実装した構造体を更に内部で持ち、同じトレイト経由でディスパッチしている (`src/cmd/configure/mod.rs` が参考例)。
+新しいサブコマンドを追加するときは:
+1. `src/cmd/<group>/<name>.rs` を作成し、引数があれば `#[derive(clap::Args)] pub struct XxxArgs { ... }` を、無ければそのまま `pub fn run() -> Result<(), String>` を書く。
+2. `src/cmd/<group>/mod.rs` の Subcommand enum に variant を追加 (引数なしならユニット、引数ありなら `Show(show::ShowArgs)` のように内部 Args を持つ形)。
+3. Args 構造体の `run` メソッドの match に分岐を追加し、leaf の関数を呼ぶ。
+
+各 Args 構造体の `#[command(arg_required_else_help = true)]` は維持する (これがないと引数なしで呼んだとき help を出さず error で落ちる)。`subcommand_required` は Subcommand フィールドが非 Option なら暗黙に立つので明示不要。
 
 ### 設定ファイルのバージョン管理とマイグレーション
 
@@ -110,5 +121,6 @@ kanban/
 
 ## 既知の注意点
 
-- `variables.rs` の `cmd::target::sub_command::REMOTE` は綴り誤り (`REMOVE` のはず) だが現状未使用なので未修正。新しく `target remove` を実装するならここを直すこと。
 - `Configuration::validate` のエラーメッセージに `tource`/`dupplicate` 等のタイポあり。修正する際はテストが無いので grep で参照箇所を確認すること。
+- `CredentialOutputTarget::new(&str)` (`models/configuration/v1.rs`) は現状参照箇所が無い dead code。clap の derive ValueEnum 化で完全に置き換わったが、API 互換を意識するなら削除前に grep で確認すること。
+- `CredentialOutputTarget` の derive `ValueEnum` は `#[value(name = "PowerShell")]` / `#[value(name = "SharedCredentials")]` で kebab-case 自動命名を抑止している。possible values の表記を変えるとシェル等の既存パイプが壊れるので、aliases (`j`/`Json` 等) を含め変更時は要注意。

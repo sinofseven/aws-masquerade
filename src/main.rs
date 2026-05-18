@@ -7,25 +7,36 @@ pub mod path;
 pub mod totp;
 pub mod variables;
 
-use base::Cmd;
-use cmd::{Assume, Configure, Source, Target};
+use cmd::{AssumeArgs, ConfigureArgs, SourceArgs, TargetArgs};
 
-use clap::command;
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(version, about, long_about = None, arg_required_else_help = true)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(clap::Subcommand)]
+enum Commands {
+    Configure(ConfigureArgs),
+    Source(SourceArgs),
+    Target(TargetArgs),
+    Assume(AssumeArgs),
+}
+
+impl Commands {
+    fn run(self) -> Result<(), String> {
+        match self {
+            Commands::Configure(args) => args.run(),
+            Commands::Source(args) => args.run(),
+            Commands::Target(args) => args.run(),
+            Commands::Assume(args) => args.run(),
+        }
+    }
+}
 
 fn main() -> Result<(), String> {
-    let matches = command!()
-        .subcommand_required(true)
-        .arg_required_else_help(true)
-        .subcommand(Configure::subcommand())
-        .subcommand(Source::subcommand())
-        .subcommand(Target::subcommand())
-        .subcommand(Assume::subcommand())
-        .get_matches();
-    match matches.subcommand() {
-        Some((Configure::NAME, args)) => Configure::run(args),
-        Some((Source::NAME, args)) => Source::run(args),
-        Some((Target::NAME, args)) => Target::run(args),
-        Some((Assume::NAME, args)) => Assume::run(args),
-        _ => unreachable!(""),
-    }
+    Cli::parse().command.run()
 }

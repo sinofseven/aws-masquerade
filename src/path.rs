@@ -1,4 +1,3 @@
-use crate::variables::cmd::configure as cmd_configure;
 use crate::variables::models::configuration::Version as ConfigVersion;
 use colored::Colorize;
 use dirs::home_dir;
@@ -49,12 +48,7 @@ pub fn get_current_path_masquerade_config() -> Result<(PathBuf, ConfigVersion), 
         );
         eprintln!(
             "{}\n",
-            format!(
-                "$ aws-masquerade {} {}",
-                cmd_configure::NAME,
-                cmd_configure::sub_command::MIGRATE
-            )
-            .yellow()
+            "$ aws-masquerade configure migrate".yellow()
         );
         Ok((old, ConfigVersion::V0))
     } else {

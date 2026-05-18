@@ -1,33 +1,21 @@
-use crate::base::Cmd;
-use crate::variables::cmd::source;
-use clap::{arg, ArgMatches, Command};
+#[derive(clap::Args)]
+pub struct ShowArgs {
+    source_name: String,
+}
 
-pub struct Show;
+pub fn run(args: ShowArgs) -> Result<(), String> {
+    let config = crate::models::configuration::load_configuration()?;
 
-impl Cmd for Show {
-    const NAME: &'static str = source::sub_command::SHOW;
+    let source = config
+        .source
+        .iter()
+        .find(|s| s.name == args.source_name)
+        .ok_or_else(|| format!("source(name={}) is not found.", args.source_name))?;
 
-    fn subcommand() -> Command {
-        Command::new(Self::NAME)
-            .about("show detail of a source")
-            .arg(arg!(<SOURCE_NAME>))
-    }
+    let text = serde_json::to_string_pretty(source)
+        .map_err(|e| format!("failed to serialize source: {}", e))?;
 
-    fn run(args: &ArgMatches) -> Result<(), String> {
-        let source_name: &String = args.get_one("SOURCE_NAME").unwrap();
-        let config = crate::models::configuration::load_configuration()?;
+    println!("{}", text);
 
-        let source = config
-            .source
-            .iter()
-            .find(|s| &s.name == source_name)
-            .ok_or_else(|| format!("source(name={}) is not found.", source_name))?;
-
-        let text = serde_json::to_string_pretty(source)
-            .map_err(|e| format!("failed to serialize source: {}", e))?;
-
-        println!("{}", text);
-
-        Ok(())
-    }
+    Ok(())
 }
