@@ -1,6 +1,6 @@
 [package]
 name = "aws-masquerade"
-description = "AWS Assume Role CLI Tool"
+description = "AWS AssumeRole CLI tool with TOTP-based MFA support and flexible credential output"
 version = "0.3.1"
 authors = ["sinofseven <em.s.00001@gmail.com>"]
 edition = "2021"
