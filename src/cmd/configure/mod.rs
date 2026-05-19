@@ -15,7 +15,9 @@ pub struct ConfigureArgs {
 enum ConfigureCommand {
     /// show config file path
     Path,
+    /// validate config file
     Validate,
+    /// migrate v0 config file to v1
     Migrate,
 }
 
