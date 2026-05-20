@@ -228,16 +228,6 @@ aws-masquerade assume dev-role | source
 aws-masquerade assume dev-role -c PowerShell | Invoke-Expression
 ```
 
-### Zsh/Bash Aliases
-
-Add to `~/.bashrc` or `~/.zshrc`:
-
-```bash
-alias ama='aws-masquerade assume'
-alias ama-dev='eval $(aws-masquerade assume dev-role)'
-alias ama-prod='eval $(aws-masquerade assume prod-role)'
-```
-
 ## MFA Setup
 
 ### Using TOTP for Automatic MFA
