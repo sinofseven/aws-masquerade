@@ -1,0 +1,6 @@
+reviews:
+  path_filters:
+    - "!kanban/**"
+  auto_review:
+    enabled: true
+language: "ja-JP"

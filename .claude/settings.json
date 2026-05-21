@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "kanban-kit@luciferous-plugins": true,
+    "rust-analyzer-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "luciferous-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "sinofseven/luciferous-plugins-for-claude-code"
+      }
+    }
+  }
+}

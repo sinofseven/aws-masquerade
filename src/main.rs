@@ -1,42 +1,42 @@
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate lazy_static;
+pub mod base;
+pub mod cmd;
+pub mod fs;
+pub mod io;
+pub mod models;
+pub mod path;
+pub mod totp;
+pub mod variables;
 
-use crate::lib::cmd_base::Cmd;
-use clap::App;
+use cmd::{AssumeArgs, ConfigureArgs, SourceArgs, TargetArgs};
 
-mod cmd;
-mod lib;
+use clap::Parser;
 
-fn main() {
-    let matches = App::new(crate_name!())
-        .author("sinofseven")
-        .about(crate_description!())
-        .version(crate_version!())
-        .subcommand(cmd::add::Add::subcommand())
-        .subcommand(cmd::assume::Assume::subcommand())
-        .subcommand(cmd::list::List::subcommand())
-        .subcommand(cmd::view::View::subcommand())
-        .subcommand(cmd::edit::Edit::subcommand())
-        .subcommand(cmd::remove::Remove::subcommand())
-        .subcommand(cmd::validate::Validate::subcommand())
-        .subcommand(cmd::config_path::ConfigPath::subcommand())
-        .get_matches();
+#[derive(Parser)]
+#[command(version, about, long_about = None, arg_required_else_help = true)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-    let result = match matches.subcommand() {
-        (cmd::add::NAME, Some(arg)) => cmd::add::Add::run(&arg),
-        (cmd::assume::NAME, Some(arg)) => cmd::assume::Assume::run(&arg),
-        (cmd::list::NAME, Some(args)) => cmd::list::List::run(&args),
-        (cmd::view::NAME, Some(args)) => cmd::view::View::run(&args),
-        (cmd::edit::NAME, Some(args)) => cmd::edit::Edit::run(&args),
-        (cmd::remove::NAME, Some(args)) => cmd::remove::Remove::run(&args),
-        (cmd::validate::NAME, Some(args)) => cmd::validate::Validate::run(&args),
-        (cmd::config_path::NAME, Some(args)) => cmd::config_path::ConfigPath::run(&args),
-        _ => Err("No subcommand chosen. Add --help | -h to view the subcommands.".to_string()),
-    };
-    if let Err(e) = result {
-        eprintln!("{}", e);
-        std::process::exit(1);
+#[derive(clap::Subcommand)]
+enum Commands {
+    Configure(ConfigureArgs),
+    Source(SourceArgs),
+    Target(TargetArgs),
+    Assume(AssumeArgs),
+}
+
+impl Commands {
+    fn run(self) -> Result<(), String> {
+        match self {
+            Commands::Configure(args) => args.run(),
+            Commands::Source(args) => args.run(),
+            Commands::Target(args) => args.run(),
+            Commands::Assume(args) => args.run(),
+        }
     }
+}
+
+fn main() -> Result<(), String> {
+    Cli::parse().command.run()
 }
