@@ -1,6 +1,7 @@
 use crate::base::Validation;
 
 #[derive(clap::Args)]
+#[command(arg_required_else_help = true)]
 pub struct ShowArgs {
     target_name: String,
 }

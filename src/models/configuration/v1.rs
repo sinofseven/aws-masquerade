@@ -180,3 +180,219 @@ impl Configuration {
         toml::to_string(self).map_err(|e| format!("failed to serialize configuration: {}", e))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::base::Validation;
+
+    fn make_source() -> Source {
+        Source {
+            name: "test-source".to_string(),
+            profile: None,
+            region: None,
+            mfa_arn: None,
+            mfa_secret: None,
+            note: None,
+            aws_access_key_id: None,
+            aws_secret_access_key: None,
+        }
+    }
+
+    fn make_target() -> Target {
+        Target {
+            name: "test-target".to_string(),
+            source: "test-source".to_string(),
+            role_arn: "arn:aws:iam::123456789012:role/TestRole".to_string(),
+            credential_output: CredentialOutputTarget::Json,
+            duration_seconds: None,
+            region: None,
+            cli_output: None,
+            note: None,
+        }
+    }
+
+    fn make_config() -> Configuration {
+        Configuration {
+            core: Core {
+                version: "1".to_string(),
+                save_totp_counter_history: None,
+            },
+            source: vec![make_source()],
+            target: vec![make_target()],
+        }
+    }
+
+    // Source::validate
+
+    #[test]
+    fn source_validate_ok_no_static_creds() {
+        let s = make_source();
+        assert!(s.validate().is_ok());
+    }
+
+    #[test]
+    fn source_validate_ok_both_static_creds() {
+        let s = Source {
+            aws_access_key_id: Some("KEY".to_string()),
+            aws_secret_access_key: Some("SECRET".to_string()),
+            ..make_source()
+        };
+        assert!(s.validate().is_ok());
+    }
+
+    #[test]
+    fn source_validate_err_only_access_key() {
+        let s = Source {
+            aws_access_key_id: Some("KEY".to_string()),
+            ..make_source()
+        };
+        assert!(s.validate().is_err());
+    }
+
+    #[test]
+    fn source_validate_err_only_secret_key() {
+        let s = Source {
+            aws_secret_access_key: Some("SECRET".to_string()),
+            ..make_source()
+        };
+        assert!(s.validate().is_err());
+    }
+
+    #[test]
+    fn source_validate_ok_mfa_arn_and_secret() {
+        let s = Source {
+            mfa_arn: Some("arn:aws:iam::123456789012:mfa/user".to_string()),
+            mfa_secret: Some("TOTP_SECRET".to_string()),
+            ..make_source()
+        };
+        assert!(s.validate().is_ok());
+    }
+
+    #[test]
+    fn source_validate_err_mfa_secret_without_arn() {
+        let s = Source {
+            mfa_secret: Some("TOTP_SECRET".to_string()),
+            ..make_source()
+        };
+        assert!(s.validate().is_err());
+    }
+
+    #[test]
+    fn source_validate_ok_mfa_arn_only() {
+        let s = Source {
+            mfa_arn: Some("arn:aws:iam::123456789012:mfa/user".to_string()),
+            ..make_source()
+        };
+        assert!(s.validate().is_ok());
+    }
+
+    // Target::validate
+
+    #[test]
+    fn target_validate_ok_none() {
+        let t = make_target();
+        assert!(t.validate().is_ok());
+    }
+
+    #[test]
+    fn target_validate_ok_900() {
+        let t = Target { duration_seconds: Some(900), ..make_target() };
+        assert!(t.validate().is_ok());
+    }
+
+    #[test]
+    fn target_validate_err_899() {
+        let t = Target { duration_seconds: Some(899), ..make_target() };
+        assert!(t.validate().is_err());
+    }
+
+    #[test]
+    fn target_validate_ok_43200() {
+        let t = Target { duration_seconds: Some(43200), ..make_target() };
+        assert!(t.validate().is_ok());
+    }
+
+    #[test]
+    fn target_validate_err_43201() {
+        let t = Target { duration_seconds: Some(43201), ..make_target() };
+        assert!(t.validate().is_err());
+    }
+
+    // Configuration::validate
+
+    #[test]
+    fn config_validate_ok() {
+        assert!(make_config().validate().is_ok());
+    }
+
+    #[test]
+    fn config_validate_err_duplicate_source_name() {
+        let mut config = make_config();
+        config.source.push(make_source());
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn config_validate_err_duplicate_target_name() {
+        let mut config = make_config();
+        config.target.push(make_target());
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn config_validate_err_target_source_not_found() {
+        let mut config = make_config();
+        config.target[0].source = "nonexistent".to_string();
+        assert!(config.validate().is_err());
+    }
+
+    // CredentialOutputTarget::new
+
+    #[test]
+    fn credential_output_target_new_json() {
+        assert_eq!(CredentialOutputTarget::new("json"), Ok(CredentialOutputTarget::Json));
+        assert_eq!(CredentialOutputTarget::new("j"), Ok(CredentialOutputTarget::Json));
+        assert_eq!(CredentialOutputTarget::new("Json"), Ok(CredentialOutputTarget::Json));
+    }
+
+    #[test]
+    fn credential_output_target_new_bash() {
+        assert_eq!(CredentialOutputTarget::new("bash"), Ok(CredentialOutputTarget::Bash));
+        assert_eq!(CredentialOutputTarget::new("b"), Ok(CredentialOutputTarget::Bash));
+    }
+
+    #[test]
+    fn credential_output_target_new_fish() {
+        assert_eq!(CredentialOutputTarget::new("fish"), Ok(CredentialOutputTarget::Fish));
+        assert_eq!(CredentialOutputTarget::new("f"), Ok(CredentialOutputTarget::Fish));
+    }
+
+    #[test]
+    fn credential_output_target_new_powershell() {
+        assert_eq!(CredentialOutputTarget::new("powershell"), Ok(CredentialOutputTarget::PowerShell));
+        assert_eq!(CredentialOutputTarget::new("p"), Ok(CredentialOutputTarget::PowerShell));
+    }
+
+    #[test]
+    fn credential_output_target_new_shared_credentials() {
+        assert_eq!(CredentialOutputTarget::new("sharedcredentials"), Ok(CredentialOutputTarget::SharedCredentials));
+        assert_eq!(CredentialOutputTarget::new("s"), Ok(CredentialOutputTarget::SharedCredentials));
+    }
+
+    #[test]
+    fn credential_output_target_new_invalid() {
+        assert!(CredentialOutputTarget::new("invalid").is_err());
+    }
+
+    // CliOutputTarget Display
+
+    #[test]
+    fn cli_output_target_display() {
+        assert_eq!(CliOutputTarget::Json.to_string(), "json");
+        assert_eq!(CliOutputTarget::Yaml.to_string(), "yaml");
+        assert_eq!(CliOutputTarget::YamlStream.to_string(), "yaml-stream");
+        assert_eq!(CliOutputTarget::Text.to_string(), "text");
+        assert_eq!(CliOutputTarget::Table.to_string(), "table");
+    }
+}

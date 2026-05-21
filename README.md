@@ -18,7 +18,7 @@ A lightweight Rust CLI tool to manage AWS AssumeRole operations with support for
 Download the latest pre-built binary for your platform from [GitHub Releases](https://github.com/sinofseven/aws-masquerade/releases).
 
 Supported platforms:
-- Linux x86_64, ARM64, ARM (glibc/musl)
+- Linux x86_64 (musl), Linux arm64 (musl), Linux arm (musl)
 - macOS aarch64
 - Windows x86_64
 
@@ -111,7 +111,7 @@ note = "Production AWS account"  # Free-form notes (optional)
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `name` | String | Yes | Unique identifier for this source |
-| `profile` | String | No | AWS profile name (from ~/.aws/config). If omitted, uses `name` as profile. |
+| `profile` | String | No | AWS profile name (from ~/.aws/config). If omitted, uses AWS SDK defaults. |
 | `region` | String | No | AWS region (default: us-east-1) |
 | `mfa_arn` | String | No | ARN of MFA device for multi-factor authentication |
 | `mfa_secret` | String | No | Base32-encoded TOTP secret for automatic MFA code generation |
@@ -263,7 +263,7 @@ MFA TOKEN: 123456
 
 ### TOTP Counter History
 
-When `save_totp_counter_history = true` (default), aws-masquerade tracks used TOTP counters in `~/.config/aws-masquerade/.totp_count_history.json` to prevent token reuse. This is necessary because AWS rejects duplicate TOTP codes.
+When `save_totp_counter_history = true`, aws-masquerade tracks used TOTP counters in `~/.config/aws-masquerade/.totp_count_history.json` to prevent token reuse (default: false). This is necessary because AWS rejects duplicate TOTP codes.
 
 ## Migration from v0 to v1
 

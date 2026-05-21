@@ -50,6 +50,7 @@ fn run_migrate() -> Result<(), String> {
     let config_old = crate::models::configuration::v0::MasqueradeConfig::new(&text_old)?;
 
     let config_latest = config_old.migrate();
+    config_latest.validate()?;
     let text_latest = config_latest.to_string()?;
 
     crate::fs::save_text(&path_latest, &text_latest)

@@ -1,3 +1,5 @@
+use crate::base::Validation;
+
 #[derive(clap::Args)]
 pub struct ShowArgs {
     source_name: String,
@@ -5,6 +7,7 @@ pub struct ShowArgs {
 
 pub fn run(args: ShowArgs) -> Result<(), String> {
     let config = crate::models::configuration::load_configuration()?;
+    config.validate()?;
 
     let source = config
         .source
